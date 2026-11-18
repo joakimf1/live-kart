@@ -218,7 +218,7 @@
   @media (max-width:760px){
     #rainBar{left:8px;right:8px;width:auto;bottom:142px;padding:8px 10px;gap:8px}
     #rainPlay{width:34px;height:34px}
-    .rb-note{display:none}
+    .rb-note{margin-left:0;width:100%}
     #alertsBar{left:12px;right:60px;max-width:none}
     #side{position:absolute;left:0;right:0;bottom:0;width:auto;height:62%;border-right:none;border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(calc(100% - 132px));transition:transform .25s}
     #side.open{transform:none}
@@ -977,7 +977,7 @@
   // ================= Nedbør-tidslinje =================
   // Fortid: radar fra RainViewer (10-min, siste 2 t). Fremtid: Yr 1 km-nedbør fra MET Victoria WMS (time for time).
   const YR_WMS = 'https://public-victoria.met.no/wms', YR_LAYER = 'precipitation_amount_acc1h_yr_1_0km_1h', YR_STYLE = 'Precipitation_1h';
-  const RAIN = {on:false, frames:[], idx:0, nowIdx:0, layers:new Map(), playing:false, timer:null, built:0, refresh:null};
+  const RAIN = {on:false, frames:[], idx:0, nowIdx:0, layers:new Map(), playing:false, timer:null, built:0, refresh:null, radarOk:null, stat:{}, point:new Map(), pointErr:''};
   const H = 3600000;
   const isoH = t => new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
@@ -986,7 +986,8 @@
     try{
       const j = await (await fetch('https://api.rainviewer.com/public/weather-maps.json')).json();
       for (const f of (j.radar?.past || [])) frames.push({t:f.time*1000, kind:'radar', url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_0.png`});
-    }catch(e){}
+      RAIN.radarOk = frames.length > 0;
+    }catch(e){ RAIN.radarOk = false; }
     frames.sort((a,b) => a.t-b.t);
     if (!frames.length){ // reserve: Yr-kartet for de to siste timene
       const h0 = Math.floor(now/H)*H; frames.push({t:h0-H, kind:'yr'}, {t:h0, kind:'yr'});
@@ -1004,7 +1005,20 @@
     else
       l = L.tileLayer.wms(YR_WMS, {pane:'rain', opacity:0, layers:YR_LAYER, styles:YR_STYLE, format:'image/png', transparent:true, version:'1.3.0', time:isoH(f.t),
         attribution:'Nedbør: <a href="https://www.met.no" target="_blank" rel="noopener">MET Norway</a> / Yr'});
-    l.addTo(map); RAIN.layers.set(fkey(f), l); return l;
+    const k = fkey(f), st = RAIN.stat[k] = {ok:0, err:0};
+    l.on('tileload', () => { st.ok++; if (RAIN.frames[RAIN.idx] && fkey(RAIN.frames[RAIN.idx])===k) updateRainUI(); });
+    l.on('tileerror', () => { st.err++; if (RAIN.frames[RAIN.idx] && fkey(RAIN.frames[RAIN.idx])===k) updateRainUI(); });
+    l.addTo(map); RAIN.layers.set(k, l); return l;
+  }
+  async function loadRainPoint(){
+    try{
+      const r = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${CENTER[0]}&lon=${CENTER[1]}`);
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      const j = await r.json(); RAIN.point.clear();
+      for (const t of j.properties.timeseries){ const mm = t.data.next_1_hours?.details?.precipitation_amount; if (mm!=null) RAIN.point.set(Date.parse(t.time)+H, mm); }
+      RAIN.pointErr = '';
+    }catch(e){ RAIN.pointErr = e.message || 'feil'; }
+    if (RAIN.on) updateRainUI();
   }
   function showFrame(i){
     i = Math.max(0, Math.min(RAIN.frames.length-1, i)); RAIN.idx = i;
@@ -1036,6 +1050,18 @@
       $('rainKind').textContent = `Varsel · om ${Math.max(1,dh)} t`; $('rainKind').className = 'rb-kind fc';
       $('rainNote').textContent = 'Varslet nedbør (mm/time) – usikkerheten øker utover';
     }
+    // Diagnose: lastet kartet? Hva sier punktvarselet for sentrum?
+    const st = RAIN.stat[fkey(f)] || {ok:0, err:0};
+    let diag = '';
+    if (st.err && !st.ok) diag = f.kind==='radar' ? '⚠ Fikk ikke hentet radarbildet' : '⚠ Fikk ikke hentet varselkartet fra MET';
+    else if (f.kind!=='radar'){
+      const mm = RAIN.point.get(f.t);
+      if (mm!=null) diag = mm>0 ? `Sentrum: ${fmtNum(mm)} mm` : 'Sentrum: opphold';
+      const futureMM = [...RAIN.point].filter(([t]) => t>Date.now() && t<=RAIN.frames[RAIN.frames.length-1].t).map(([,v]) => v);
+      if (futureMM.length && futureMM.every(v => v===0)) diag += ' · ingen nedbør i sentrum neste 12 t – zoom ut for å se resten av landet';
+    }
+    else if (RAIN.radarOk===false) diag = '⚠ Radar utilgjengelig – viser bare varsel';
+    if (diag) $('rainNote').textContent = diag;
     const n = RAIN.frames.length-1, pos = i => (i/n*100)+'%';
     const first = RAIN.frames[0], last = RAIN.frames[n];
     $('rainTicks').innerHTML = `<span style="left:${pos(0)};transform:none">${clock(first.t)}</span>
@@ -1058,7 +1084,9 @@
     if (!RAIN.on){
       RAIN.on = true; $('rainBar').hidden = false; rainBtn?.classList.add('on');
       $('rainTime').textContent = 'Henter …';
+      loadRainPoint();
       await buildRainFrames(); showFrame(RAIN.nowIdx);
+      if (RAIN.radarOk===false) toast('Radaren (RainViewer) svarte ikke – viser bare Yr-varselet.');
       clearInterval(RAIN.refresh);
       RAIN.refresh = setInterval(async () => { if (!RAIN.on) return; const wasNow = RAIN.idx===RAIN.nowIdx; await buildRainFrames(); showFrame(wasNow ? RAIN.nowIdx : Math.min(RAIN.idx, RAIN.frames.length-1)); }, 10*60000);
     }

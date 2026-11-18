@@ -1,7 +1,7 @@
 // Bergen live – service worker
 // Appskallet caches slik at appen åpner raskt og fungerer som installert app.
 // Sanntidsdata (Entur, MET, strømpris) og kartfliser går alltid rett til nettet.
-const CACHE = 'bergenlive-v2';
+const CACHE = 'bergenlive-v3';
 const SHELL = [
   './',
   './index.html',

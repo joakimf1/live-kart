@@ -56,6 +56,16 @@ await step('Avganger fra Byparken', async () => {
 
 // 3) Følg et kjøretøy (neste stopp fra Journey Planner)
 await step('Følg kjøretøy – neste stopp', async () => {
+  const dbg = await page.evaluate(() => {
+    const b = window.__blk; if (!b) return null;
+    const vs = [...b.vehicles.values()].map(r => r.data);
+    const deps = Array.isArray(b.stopDeps) ? b.stopDeps : [];
+    return { vqi: b.vqi, total: vs.length, withSJ: vs.filter(d => d.sj).length,
+      sampleVeh: vs.filter(d => d.sj && d.src==='rt').slice(0, 3).map(d => d.sj),
+      sampleBB: vs.filter(d => d.src==='bb').slice(0, 2).map(d => d.sj),
+      sampleDep: deps.slice(0, 4).map(c => c.serviceJourney?.id + ' (' + c.serviceJourney?.line?.publicCode + ')') };
+  });
+  console.log('DEBUG koblinger:', JSON.stringify(dbg));
   const live = await page.$('#stopDeps .dep.live');
   if (!live) { warn('Følg kjøretøy – neste stopp', false, 'ingen avgang med live posisjon akkurat nå'); return; }
   await live.click();

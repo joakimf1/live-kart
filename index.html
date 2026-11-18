@@ -1351,6 +1351,9 @@
   $('scFull').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {}); };
   document.addEventListener('keydown', e => { if (e.key==='Escape'){ if (!$('modal').hidden) closeModal(); else if (!$('screen').hidden && !document.fullscreenElement) closeScreen(); } });
 
+  // Feilsøking (brukes av røyktesten): window.__blk
+  window.__blk = { vehicles, bySJ, get vqi(){ return vqi; }, get stopDeps(){ return stopDeps; }, BB };
+
   // ================= Start =================
   render();
   pollVehicles();

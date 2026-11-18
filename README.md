@@ -16,6 +16,11 @@ Live-kart over kollektivtrafikken i Bergen: busser, Bybanen og båter i sanntid.
 - **Installerbar app (PWA):** «Legg til på Hjem-skjerm» på mobil, eller «Installer» i Chrome og Edge
 - **Varsel når bussen nærmer seg:** trykk på 🔔 ved en avgang og velg hvor mange minutter før du vil ha beskjed. Varselet virker så lenge appen er åpen, også i bakgrunnen. På iPhone kreves det at appen er lagt til på Hjem-skjerm.
 - **Nedbør-tidslinje (☔ Nedbør):** dra eller spill av fra 2 timer bakover (radar) til 12 timer frem (Yr sitt 1 km-varsel) og se regnet komme inn over byen. Piltastene blar frem og tilbake.
+- **☀ Min morgen:** velg en holdeplass, linjer, tidsrom og gangtid. Da ligger et kort øverst i kartet med neste avganger, «Gå om 4 min», regn ved holdeplassen og avvik.
+- **Avvik:** trafikkmeldinger fra Entur (omkjøring, innstillinger) vises på avgangene
+- **Båt og ferje:** snarveier til Strandkaiterminalen, Halhjem og Sandvikvåg, og ferger og hurtigbåter i et større område på kartet
+- **Push-varsler når appen er lukket** (valgfritt): bussvarsler og Min morgen-varsler om innstilte avganger og forsinkelser over 5 min. Krever en gratis Cloudflare Worker, se [worker/README.md](worker/README.md).
+- **Snarveier fra app-ikonet:** Favoritt, Min morgen, Nedbør og Bergen nå
 - **Skjermmodus:** stor avgangstavle for iPad eller TV, med klokke og vær, som holder skjermen våken
 
 ## Delbare lenker
@@ -29,6 +34,8 @@ Live-kart over kollektivtrafikken i Bergen: busser, Bybanen og båter i sanntid.
 | `#linje/20` | Kartet filtrert på linje 20 (flere: `#linje/20,21`) |
 | `#bergen-na` | Bergen nå-oversikten |
 | `#regn` | Kartet med nedbør-tidslinjen åpen |
+| `#morgen` | Viser Min morgen-kortet nå |
+| `#favoritt` | Avgangstavla for favoritt-holdeplassen |
 
 Adressen oppdateres automatisk mens du bruker siden, og «Del»-knappen på en holdeplass kopierer lenken.
 

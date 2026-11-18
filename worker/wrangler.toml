@@ -1,0 +1,20 @@
+name = "bergen-live-push"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# Sjekker Entur hvert minutt
+[triggers]
+crons = ["* * * * *"]
+
+# Lagring av abonnementer. Lag den med:  npx wrangler kv namespace create SUBS
+# og lim inn id-en du får tilbake her.
+[[kv_namespaces]]
+binding = "SUBS"
+id = "SETT_INN_KV_ID_HER"
+
+[vars]
+# Bare denne nettsiden får bruke tjenesten
+ALLOWED_ORIGIN = "https://joakimf1.github.io"
+APP_URL = "https://joakimf1.github.io/live-kart/"
+# Kontaktadresse push-tjenestene (Google/Apple/Mozilla) kan bruke ved problemer
+VAPID_SUBJECT = "mailto:SETT_INN_EPOST_HER"

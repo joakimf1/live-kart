@@ -10,8 +10,69 @@
   "background_color": "#0f1418",
   "theme_color": "#161d22",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Favoritt-holdeplass",
+      "short_name": "Favoritt",
+      "description": "Avgangstavla for favoritten din",
+      "url": "./#favoritt",
+      "icons": [
+        {
+          "src": "icons/sc-stop.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Min morgen",
+      "short_name": "Morgen",
+      "url": "./#morgen",
+      "icons": [
+        {
+          "src": "icons/sc-morning.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Nedbør",
+      "short_name": "Nedbør",
+      "description": "Radar og nedbørvarsel",
+      "url": "./#regn",
+      "icons": [
+        {
+          "src": "icons/sc-rain.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Bergen nå",
+      "short_name": "Bergen nå",
+      "url": "./#bergen-na",
+      "icons": [
+        {
+          "src": "icons/sc-now.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
   ]
 }

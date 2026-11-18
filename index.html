@@ -152,8 +152,31 @@
   .bell.on{color:#fbbf24}
   .bell svg{width:16px;height:16px}
   .btnrow{display:flex;gap:6px;flex-wrap:wrap}
-  /* alerts bar */
-  #alertsBar{position:fixed;top:12px;left:352px;z-index:900;display:flex;flex-direction:column;gap:6px;max-width:300px}
+  /* top stack (Min morgen + alerts) */
+  #topStack{position:fixed;top:12px;left:352px;z-index:900;display:flex;flex-direction:column;gap:8px;width:320px;max-width:calc(100vw - 420px)}
+  #alertsBar{display:flex;flex-direction:column;gap:6px}
+  #alertsBar[hidden],#morningCard[hidden]{display:none}
+  #morningCard{background:rgba(22,29,34,.97);border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:13px;box-shadow:0 6px 22px rgba(0,0,0,.45);cursor:pointer;backdrop-filter:blur(6px)}
+  .mm-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .mm-head b{color:var(--text)}
+  .mm-head button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px}
+  .mm-go{background:#1e3a5f;color:#bfdbfe;border-radius:9px;padding:7px 10px;margin-bottom:6px;font-size:13px}
+  .mm-go.now{background:#7c2d12;color:#fed7aa;font-weight:700}
+  .mm-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:4px 0}
+  .mm-row .badge{height:22px;min-width:34px;font-size:12px}
+  .mm-row .tt{font-weight:700;font-variant-numeric:tabular-nums}
+  .mm-row .dd{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mm-foot{color:var(--muted);font-size:12px;margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+  .sit{color:#fbbf24;font-size:12px;margin-top:4px;line-height:1.35}
+  .dep .sit{font-size:11px;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .mm-form{display:grid;grid-template-columns:1fr;gap:6px;margin:12px 0}
+  .mm-form label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin-top:6px}
+  .mm-form input[type=time],.mm-form input[type=number]{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 9px;font:inherit;font-size:14px;color-scheme:dark}
+  .mm-form input[type=number]{width:70px}
+  .mm-btns{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center;font-size:12px;color:var(--muted)}
+  .quick button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer}
+  .quick button:hover{border-color:var(--boat)}
   .al{display:flex;align-items:center;gap:10px;background:rgba(22,29,34,.95);border:1px solid var(--line);border-radius:12px;padding:8px 8px 8px 10px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4);cursor:pointer;backdrop-filter:blur(6px)}
   .al small{display:block;color:var(--muted);font-size:11px}
   .al button{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 6px}
@@ -219,7 +242,7 @@
     #rainBar{left:8px;right:8px;width:auto;bottom:142px;padding:8px 10px;gap:8px}
     #rainPlay{width:34px;height:34px}
     .rb-note{margin-left:0;width:100%}
-    #alertsBar{left:12px;right:60px;max-width:none}
+    #topStack{left:12px;right:60px;width:auto;max-width:none}
     #side{position:absolute;left:0;right:0;bottom:0;width:auto;height:62%;border-right:none;border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(calc(100% - 132px));transition:transform .25s}
     #side.open{transform:none}
     #toggle{display:block;position:absolute;top:7px;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px;background:var(--line);border:none;cursor:pointer;padding:0}
@@ -273,6 +296,11 @@
         <input type="search" id="stopQ" placeholder="Søk holdeplass, f.eks. Byparken …" autocomplete="off">
         <div class="results" id="stopResults"></div>
         <p class="hint" id="stopHint">…eller zoom inn i kartet og trykk på en holdeplass.</p>
+        <div class="quick" id="boatQuick">⛴ Båt og ferje:
+          <button data-q="Strandkaiterminalen">Strandkaiterminalen</button>
+          <button data-q="Halhjem ferjekai">Halhjem</button>
+          <button data-q="Sandvikvåg ferjekai">Sandvikvåg</button>
+        </div>
       </div>
       <div id="stopBox"></div>
     </section>
@@ -287,7 +315,7 @@
   </aside>
   <div id="map"></div>
 </div>
-<div id="alertsBar" hidden></div>
+<div id="topStack"><div id="morningCard" hidden></div><div id="alertsBar" hidden></div></div>
 <div id="rainBar" hidden>
   <button id="rainPlay" aria-label="Spill av">▶</button>
   <div class="rb-main">
@@ -309,6 +337,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="config.js"></script>
 <script>
 (() => {
   // ================= Config =================
@@ -440,13 +469,19 @@
   const vb = `boundingBox:{minLat:${BBOX.minLat},minLon:${BBOX.minLon},maxLat:${BBOX.maxLat},maxLon:${BBOX.maxLon}}`;
   const VQ = [`{vehicles(${vb}){${VF_FULL}}}`, `{vehicles(${vb}){${VF_MID}}}`, `{vehicles(${vb}){${VF_MIN}}}`, `{vehicles(codespaceId:"SKY"){${VF_MIN}}}`];
   let vqi = 0;
+  const FERRY = {ok:true, n:0, list:[], err:''};
 
   async function pollVehicles(){
     try{
       let data;
       for (;;){ try{ data = await gql(URL_VEH, VQ[vqi]); break; } catch(e){ if (vqi < VQ.length-1 && !/HTTP|fetch/i.test(e.message)) vqi++; else throw e; } }
       const now = Date.now(), seen = new Set();
-      for (const v of data.vehicles || []){
+      // Ferger/hurtigbåter i et større område (Bergen–Stavanger, Sognefjorden), hver 3. runde
+      if (FERRY.ok && FERRY.n++ % 3 === 0){
+        try{ const fd = await gql(URL_VEH, `{vehicles(boundingBox:{minLat:58.8,minLon:4.4,maxLat:61.6,maxLon:7.6}, mode:FERRY){${[VF_FULL,VF_MID,VF_MIN,VF_MIN][vqi]}}}`); FERRY.list = fd.vehicles || []; }
+        catch(e){ FERRY.ok = false; FERRY.err = e.message; FERRY.list = []; }
+      }
+      for (const v of [...(data.vehicles || []), ...FERRY.list]){
         if (!v?.location) continue;
         const ts = v.lastUpdated ? Date.parse(v.lastUpdated) : now;
         if (now-ts > STALE_MS) continue;
@@ -760,6 +795,11 @@
     if (b.dataset.fav != null) openStop(load('blk.favs', [])[+b.dataset.fav], true);
     else openStop(JSON.parse(b.dataset.s), true);
   });
+  $('boatQuick').addEventListener('click', async e => {
+    const b = e.target.closest('[data-q]'); if (!b) return;
+    try{ const s = await geocodeFirst(b.dataset.q); if (s) openStop({...s, boatsOnly:true}, true); else toast('Fant ikke «'+esc(b.dataset.q)+'».'); }
+    catch(err){ toast('Søket feilet.'); }
+  });
   $('stopQ').addEventListener('input', debounce(async () => {
     const q = $('stopQ').value.trim();
     if (q.length < 2){ renderFavs(); return; }
@@ -797,7 +837,7 @@
     try{
       const data = await gql(URL_JP, `{ stopPlace(id:${JSON.stringify(id)}) { id name latitude longitude
         estimatedCalls(numberOfDepartures:40, timeRange:10800) { realtime cancellation aimedDepartureTime expectedDepartureTime
-          destinationDisplay{frontText} quay{publicCode} serviceJourney{id line{publicCode transportMode}} } } }`);
+          destinationDisplay{frontText} quay{publicCode} serviceJourney{id line{publicCode transportMode}} ${SIT} } } }`);
       if (curStop?.id !== id) return;
       const sp = data.stopPlace;
       if (sp){ const named = curStop.name==='…'; curStop.name = sp.name; if (named && view==='stop') setStopHash();
@@ -825,16 +865,20 @@
           <span class="btnrow">
             <button class="iconbtn" id="stopShare" title="Del lenke til avgangstavla">Del</button>
             <button class="iconbtn" id="stopScreen" title="Stor avgangstavle for skjerm/TV">Skjerm</button>
+            <button class="iconbtn${morning?.stopId===curStop.id?' on':''}" id="stopMorning" title="Bruk som Min morgen">☀</button>
             <button class="iconbtn${isFav?' on':''}" id="stopFav">${isFav?'★ Favoritt':'☆ Lagre'}</button>
           </span>
         </div>
         <div class="ttl">${esc(curStop.name)}</div>
+        ${curStop.boatsOnly ? `<p class="hint">⛴ Viser bare båt- og fergeavganger. <button class="link" id="stopAllModes">Vis alle</button></p>` : ''}
         ${lineChips}
       </div>
       <div class="deps" id="stopDeps"></div>`;
     $('stopBack').onclick = closeStop;
     $('stopShare').onclick = () => shareLink(`stopp/${stopNum(curStop.id)}/${slugify(curStop.name)}`, `Avganger fra ${curStop.name}`);
     $('stopScreen').onclick = () => openScreen([curStop.id], [...stopFilter], true);
+    $('stopMorning').onclick = () => setupMorning();
+    if ($('stopAllModes')) $('stopAllModes').onclick = () => { curStop.boatsOnly = false; renderStop(); };
     $('stopFav').onclick = () => { let f = load('blk.favs', []);
       f = isFav ? f.filter(x => x.id!==curStop.id) : [{id:curStop.id, name:curStop.name, lat:curStop.lat, lon:curStop.lon}, ...f].slice(0,8);
       store('blk.favs', f); renderStop(); };
@@ -848,6 +892,7 @@
     if (stopDeps.error){ el.innerHTML = `<p class="hint err-t" style="padding:0 16px">Kunne ikke hente avganger (${esc(stopDeps.error)}).</p>`; return; }
     const now = Date.now();
     const list = stopDeps.filter(c => Date.parse(c.expectedDepartureTime) >= now-30000)
+      .filter(c => !curStop.boatsOnly || normMode(c.serviceJourney?.line?.transportMode)==='boat')
       .filter(c => !stopFilter.size || stopFilter.has(c.serviceJourney?.line?.publicCode)).slice(0, 25);
     if (!list.length){ el.innerHTML = `<p class="hint" style="padding:0 16px">Ingen avganger de neste timene.</p>`; return; }
     lastStopList = list;
@@ -862,7 +907,7 @@
       const hasAl = alerts.some(a => a.sj===c.serviceJourney?.id && a.stopId===curStop.id);
       return `<div class="dep${v?' live':''}" ${v?`data-v="${esc(vid)}"`:''}>
         <span class="badge" style="--c:${MODES[m].color}">${esc(l.publicCode||'?')}</span>
-        <span style="min-width:0"><div class="d">${esc(c.destinationDisplay?.frontText||'')}</div><div class="m">${meta}</div></span>
+        <span style="min-width:0"><div class="d">${esc(c.destinationDisplay?.frontText||'')}</div><div class="m">${meta}</div>${sitText(c) ? `<div class="sit" title="${esc(sitText(c))}">⚠ ${esc(sitText(c))}</div>` : ''}</span>
         <span class="t ${c.cancellation?'cx':''}">${relTime(t)}${dl>=2?`<small>${clock(aimed)}</small>`:''}</span>
         <button class="bell${hasAl?' on':''}" data-al="${i}" title="${hasAl?'Fjern varsel':'Varsle meg'}" aria-label="${hasAl?'Fjern varsel':'Varsle meg'}">${BELL}</button></div>`;
     }).join('');
@@ -1110,6 +1155,142 @@
     L.DomEvent.disableClickPropagation(b); b.onclick = () => RAIN.on ? closeRain() : openRain(); rainBtn = b; return b; } });
   new RainCtl().addTo(map);
 
+  // ================= Avvik (Entur situations) =================
+  const SIT = `situations { summary { value language } description { value language } }`;
+  const pickLang = arr => { if (!arr?.length) return ''; const n = arr.find(x => /^(no|nb|nob|nor|nn)$/i.test(x.language||'')); return (n || arr[0]).value || ''; };
+  const sitText = c => { const s = (c.situations||[])[0]; return s ? (pickLang(s.summary) || pickLang(s.description)) : ''; };
+
+  // ================= Min morgen =================
+  let morning = load('blk.morning', null), forceMorning = false;
+  const MM = {calls:null, err:'', rain:null, rainT:0, dismissed:load('blk.morningDismissed','')};
+  function osloNow(t = Date.now()){
+    const p = new Intl.DateTimeFormat('en-GB', {timeZone:'Europe/Oslo', weekday:'short', hour:'2-digit', minute:'2-digit', hourCycle:'h23'}).formatToParts(new Date(t));
+    const g = k => p.find(x => x.type===k)?.value;
+    return {wd:{Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6,Sun:7}[g('weekday')], hm:`${g('hour')}:${g('minute')}`};
+  }
+  function morningActive(){
+    if (!morning) return false;
+    if (forceMorning) return true;
+    if (MM.dismissed === todayOslo()) return false;
+    const {wd, hm} = osloNow();
+    return (morning.days||[]).includes(wd) && hm >= morning.from && hm <= morning.to;
+  }
+  async function fetchNowcast(lat, lon){
+    const r = await fetch(`https://api.met.no/weatherapi/nowcast/2.0/complete?lat=${(+lat).toFixed(4)}&lon=${(+lon).toFixed(4)}`);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const j = await r.json();
+    return j.properties.timeseries.slice(0,19).map(t => ({t:Date.parse(t.time), v:t.data.instant.details.precipitation_rate ?? 0}));
+  }
+  async function loadMorning(){
+    if (!morning) return;
+    try{
+      const d = await gql(URL_JP, `{ stopPlace(id:${JSON.stringify(morning.stopId)}) { name estimatedCalls(numberOfDepartures:60, timeRange:10800) {
+        cancellation realtime aimedDepartureTime expectedDepartureTime destinationDisplay{frontText} serviceJourney{id line{publicCode transportMode}} ${SIT} } } }`);
+      MM.calls = d.stopPlace?.estimatedCalls || []; MM.err = '';
+    }catch(e){ MM.err = e.message; }
+    if (morning.lat && Date.now()-MM.rainT > 5*60000){ MM.rainT = Date.now(); try{ MM.rain = await fetchNowcast(morning.lat, morning.lon); }catch(e){ MM.rain = null; } }
+    renderMorning();
+  }
+  function renderMorning(){
+    const el = $('morningCard');
+    if (!morningActive() || !$('screen').hidden){ el.hidden = true; return; }
+    el.hidden = false;
+    const now = Date.now(), lines = morning.lines || [], walk = (morning.walk||0)*60000;
+    const mine = (MM.calls||[]).filter(c => !lines.length || lines.includes(c.serviceJourney?.line?.publicCode));
+    const list = mine.filter(c => Date.parse(c.expectedDepartureTime) >= now-30000).slice(0, 3);
+    let go = '';
+    if (walk){
+      const reach = list.find(c => !c.cancellation && Date.parse(c.expectedDepartureTime) - walk >= now - 30000);
+      if (reach){
+        const t = Date.parse(reach.expectedDepartureTime), m = Math.floor((t - walk - now)/60000);
+        go = m <= 0 ? `<div class="mm-go now">🏃 Gå nå for å rekke ${esc(reach.serviceJourney?.line?.publicCode)} kl. ${clock(t)}</div>`
+                    : `<div class="mm-go">🚶 Gå om <b>${m} min</b> for å rekke ${esc(reach.serviceJourney?.line?.publicCode)} kl. ${clock(t)}</div>`;
+      }
+    }
+    const rows = list.map(c => {
+      const l = c.serviceJourney?.line || {}, m = normMode(l.transportMode), t = Date.parse(c.expectedDepartureTime);
+      const dl = Math.round((t - Date.parse(c.aimedDepartureTime))/60000);
+      return `<div class="mm-row"><span class="badge" style="--c:${MODES[m].color}">${esc(l.publicCode||'?')}</span>
+        <span class="dd">${esc(c.destinationDisplay?.frontText||'')}</span>
+        <span class="tt ${c.cancellation?'cx':''}">${c.cancellation?'Innstilt':relTime(t)}${!c.cancellation && dl>=2?` <span class="late-t">+${dl}</span>`:''}</span></div>`;
+    }).join('');
+    let rain = '';
+    if (MM.rain?.length){
+      const wet = x => x.v > 0.1, n = MM.rain.find(wet);
+      rain = wet(MM.rain[0]) ? '☔ Det regner ved holdeplassen nå' : n ? `☂ Regn om ca. ${Math.max(5, Math.round((n.t-now)/60000))} min` : '☀ Opphold de neste 90 minuttene';
+    }
+    const sits = [...new Set(mine.filter(c => Date.parse(c.expectedDepartureTime) < now + 2*H).map(sitText).filter(Boolean))].slice(0, 2);
+    el.innerHTML = `<div class="mm-head"><span>☀ Min morgen · <b>${esc(morning.stopName)}</b></span><button data-x aria-label="Skjul i dag" title="Skjul i dag">✕</button></div>
+      ${go}${rows || `<p class="hint" style="margin:2px 0">${MM.calls ? 'Ingen avganger på linjene dine de neste timene.' : MM.err ? 'Fikk ikke hentet avganger.' : 'Henter …'}</p>`}
+      ${rain ? `<div class="mm-foot">${rain}</div>` : ''}${sits.map(x => `<div class="sit">⚠ ${esc(x)}</div>`).join('')}`;
+  }
+  $('morningCard').addEventListener('click', e => {
+    if (e.target.closest('[data-x]')){ MM.dismissed = todayOslo(); store('blk.morningDismissed', MM.dismissed); forceMorning = false; renderMorning(); return; }
+    openStop({id:morning.stopId, name:morning.stopName, lat:morning.lat, lon:morning.lon}, true);
+  });
+  function setupMorning(){
+    const deps = Array.isArray(stopDeps) ? stopDeps : [];
+    const codes = new Map(); for (const c of deps){ const l = c.serviceJourney?.line; if (l) codes.set(l.publicCode, normMode(l.transportMode)); }
+    const same = morning?.stopId === curStop.id;
+    const m = same ? morning : {from:'06:00', to:'09:30', days:[1,2,3,4,5], walk:0, lines:[...stopFilter]};
+    const sel = new Set(m.lines||[]), days = new Set(m.days||[]);
+    modal(`<h3>☀ Min morgen</h3>
+      <p class="hint" style="margin-top:0">Et kort øverst i kartet i tidsrommet du velger, med neste avganger fra <b>${esc(curStop.name)}</b>, når du må gå, regn ved holdeplassen og avvik.</p>
+      <div class="mm-form">
+        <label>Linjer (ingen valgt = alle)</label>
+        <div class="lines" id="mmLines">${[...codes].sort((a,b) => a[0].localeCompare(b[0],'no',{numeric:true})).map(([c,md]) => `<button class="chip${sel.has(c)?' sel':''}" data-c="${esc(c)}" style="--c:${MODES[md].color}">${esc(c)}</button>`).join('') || '<span class="hint">Ingen avganger lastet ennå – alle linjer brukes.</span>'}</div>
+        <label>Tidsrom</label>
+        <div><input type="time" id="mmFrom" value="${m.from}"> – <input type="time" id="mmTo" value="${m.to}"></div>
+        <label>Dager</label>
+        <div class="lines" id="mmDays">${['Ma','Ti','On','To','Fr','Lø','Sø'].map((d,i) => `<button class="chip${days.has(i+1)?' sel':''}" data-d="${i+1}" style="--c:var(--accent)">${d}</button>`).join('')}</div>
+        <label>Gangtid til holdeplassen</label>
+        <div><input type="number" id="mmWalk" min="0" max="45" value="${m.walk||0}"> min</div>
+      </div>
+      ${pushSupported ? '<p class="hint">📲 Du får også push-varsel hvis en av avgangene dine blir innstilt eller over 5 min forsinket – selv når appen er lukket.</p>' : ''}
+      <div class="mm-btns">${same ? '<button class="link" id="mmDel" style="color:#f87171">Fjern</button>' : ''}<span style="flex:1"></span><button class="link" data-close style="font-size:13px">Avbryt</button><button class="iconbtn on" id="mmSave">Lagre</button></div>`);
+    $('mmLines').onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; sel.has(b.dataset.c) ? sel.delete(b.dataset.c) : sel.add(b.dataset.c); b.classList.toggle('sel'); };
+    $('mmDays').onclick = e => { const b = e.target.closest('[data-d]'); if (!b) return; const d = +b.dataset.d; days.has(d) ? days.delete(d) : days.add(d); b.classList.toggle('sel'); };
+    if ($('mmDel')) $('mmDel').onclick = () => { morning = null; store('blk.morning', null); closeModal(); renderMorning(); renderStop(); syncPush(); toast('Min morgen er fjernet.'); };
+    $('mmSave').onclick = async () => {
+      morning = {stopId:curStop.id, stopName:curStop.name, lat:curStop.lat, lon:curStop.lon, lines:[...sel],
+        from:$('mmFrom').value || '06:00', to:$('mmTo').value || '09:30', days:[...days].sort(), walk:Math.max(0, +$('mmWalk').value || 0)};
+      store('blk.morning', morning); MM.calls = null; MM.rainT = 0; MM.dismissed = ''; store('blk.morningDismissed', '');
+      forceMorning = true; closeModal(); renderStop(); loadMorning();
+      toast(`☀ Min morgen vises ${morning.from}–${morning.to}. Den vises også nå så du ser hvordan den blir.`, 6000);
+      if (pushSupported){ const p = await ensurePermission(); if (p === 'granted') enablePush().catch(() => {}); }
+    };
+  }
+
+  // ================= Push-varsler (når appen er lukket) =================
+  // Krever at PUSH_API i config.js peker til Cloudflare Worker-en i /worker.
+  const PUSH_API = String(window.BLK_CONFIG?.PUSH_API || '').replace(/\/+$/, '');
+  const pushSupported = !!PUSH_API && 'serviceWorker' in navigator && 'PushManager' in window && location.protocol==='https:';
+  let pushOn = load('blk.push', false);
+  const b64uToBytes = s => { const b = atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+  async function enablePush(){
+    if (!pushSupported) return false;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub){
+      const {key} = await (await fetch(PUSH_API + '/vapid')).json();
+      sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64uToBytes(key)});
+    }
+    if (!pushOn){ pushOn = true; store('blk.push', true); toast('📲 Varsler virker nå også når appen er lukket.'); }
+    await syncPushNow();
+    return true;
+  }
+  async function syncPushNow(){
+    if (!pushSupported || !pushOn) return;
+    try{
+      const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (!sub) return;
+      await fetch(PUSH_API + '/subscribe', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        subscription: sub.toJSON(), appUrl: location.origin + location.pathname,
+        alerts: alerts.map(a => ({stopId:a.stopId, stopName:a.stopName, sj:a.sj, line:a.line, dest:a.dest, mins:a.mins, t:a.t})),
+        morning })});
+    }catch(e){ /* prøver igjen ved neste endring */ }
+  }
+  const syncPush = debounce(syncPushNow, 800);
+
   // ================= Toast + modal =================
   let toastT;
   function toast(msg, ms=3800){ const t=$('toast'); t.innerHTML=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(() => t.classList.remove('on'), ms); }
@@ -1150,7 +1331,7 @@
   }
 
   let alerts = load('blk.alerts', []).filter(a => a.t > Date.now() - 2*60000);
-  function saveAlerts(){ store('blk.alerts', alerts); renderAlertsBar(); }
+  function saveAlerts(){ store('blk.alerts', alerts); renderAlertsBar(); if (typeof syncPush==='function') syncPush(); }
   function renderAlertsBar(){
     const el = $('alertsBar');
     if (!alerts.length || !$('screen').hidden){ el.hidden = true; return; }
@@ -1179,15 +1360,16 @@
         mot <b>${esc(c.destinationDisplay?.frontText||'')}</b> går fra ${esc(curStop.name)} ${(r => r==='nå' ? 'nå' : r.includes(':') ? 'kl. '+r : 'om '+r)(relTime(t))}. Når vil du ha beskjed?</p>
       ${opts.length ? `<div class="opts">${opts.map(x => `<button class="iconbtn" data-m="${x}">${x} min før</button>`).join('')}</div>` : '<p class="hint">Den går straks – for sent å sette varsel.</p>'}
       ${note ? `<p class="hint">${note}</p>` : ''}
-      <p class="hint">Varselet virker så lenge Bergen live er åpen (også i bakgrunnen).</p>
+      <p class="hint">${pushSupported ? '📲 Varselet kommer også når appen er lukket.' : 'Varselet virker så lenge Bergen live er åpen (også i bakgrunnen).'}</p>
       <div style="text-align:right;margin-top:10px"><button class="link" data-close style="font-size:13px">Avbryt</button></div>`);
     $('modalBody').querySelectorAll('[data-m]').forEach(b => b.onclick = async () => {
-      await ensurePermission();
+      const perm = await ensurePermission();
       const mins = +b.dataset.m;
       alerts.push({sj:c.serviceJourney.id, stopId:curStop.id, stopName:curStop.name, line:l.publicCode||'?', mode:m,
                    dest:c.destinationDisplay?.frontText||'', mins, t});
       saveAlerts(); closeModal(); renderStopLive();
       toast(`🔔 Du får beskjed når ${esc(l.publicCode)} er ${mins} min fra ${esc(curStop.name)}.`);
+      if (perm === 'granted' && pushSupported) enablePush().catch(() => {});
     });
   }
   async function checkAlerts(){
@@ -1266,6 +1448,8 @@
       }
       else if (h==='bergen-na' || h==='na') setView('now');
       else if (h==='regn' || h==='nedbor') openRain();
+      else if (h==='morgen'){ if (morning){ forceMorning = true; loadMorning(); } else toast('Sett opp ☀ Min morgen fra en holdeplass først.'); }
+      else if (h==='favoritt'){ const f = load('blk.favs', []); if (f.length) openStop(f[0], true); else { setView('stop'); toast('Du har ingen favoritt ennå – lagre en holdeplass med ☆.'); } }
     }catch(e){ /* ugyldig lenke – ignorer */ }
     finally{ applyingHash = false; }
   }
@@ -1283,7 +1467,7 @@
   function openScreen(ids, lines, gesture){
     if (!ids.length) return;
     SC.ids = ids; SC.lines = lines; SC.stops = new Map(); SC.err = '';
-    $('screen').hidden = false; document.body.classList.add('screen-on'); renderAlertsBar();
+    $('screen').hidden = false; document.body.classList.add('screen-on'); renderAlertsBar(); renderMorning();
     setHash(`skjerm/${ids.map(stopNum).join(',')}${lines.length ? '/linjer='+lines.join(',') : ''}`);
     $('scFull').hidden = !document.fullscreenEnabled;
     if (gesture && document.fullscreenEnabled && window.innerWidth > 900) document.documentElement.requestFullscreen?.().catch(() => {});
@@ -1297,7 +1481,7 @@
     clearInterval(SC.timer); clearInterval(SC.tick);
     try{ SC.wake?.release(); }catch(e){} SC.wake = null;
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-    renderAlertsBar();
+    renderAlertsBar(); renderMorning();
     if (view==='stop' && curStop) setStopHash(); else if (view==='now') setHash('bergen-na'); else updateLineHash();
     if (!curStop && SC.ids.length===1){ openStop({id:SC.ids[0], name:SC.stops.get(SC.ids[0])?.name || '…'}, true); }
   }
@@ -1352,7 +1536,7 @@
   document.addEventListener('keydown', e => { if (e.key==='Escape'){ if (!$('modal').hidden) closeModal(); else if (!$('screen').hidden && !document.fullscreenElement) closeScreen(); } });
 
   // Feilsøking (brukes av røyktesten): window.__blk
-  window.__blk = { vehicles, bySJ, get vqi(){ return vqi; }, get stopDeps(){ return stopDeps; }, BB };
+  window.__blk = { vehicles, bySJ, get vqi(){ return vqi; }, get stopDeps(){ return stopDeps; }, BB, FERRY, MM, get morning(){ return morning; } };
 
   // ================= Start =================
   render();
@@ -1361,6 +1545,10 @@
   loadStops();
   setInterval(() => { if (view==='stop' && curStop) renderStopLive(); if (view==='veh') renderVehicleHead(); }, 10000);
   renderAlertsBar(); checkAlerts();
+  if (morningActive()) loadMorning();
+  if (pushOn) syncPush();
+  setInterval(() => { if (morningActive()) loadMorning(); else renderMorning(); }, 30000);
+  setInterval(() => { if (!$('morningCard').hidden) renderMorning(); }, 10000);
   setInterval(checkAlerts, 30000); setInterval(tickAlerts, 5000);
   applyHash();
 })();

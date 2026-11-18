@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Enhetstester for push-Worker
+        run: node worker/test.mjs
+
       - name: Installer Playwright
         working-directory: tests
         run: |

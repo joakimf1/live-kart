@@ -79,6 +79,43 @@ await step('Følg kjøretøy – neste stopp', async () => {
   await page.screenshot({ path: SHOTS + '3-folg.png' });
 });
 
+// 3b) Avvik + Min morgen (oppsett via UI på Danmarksplass)
+await step('Min morgen', async () => {
+  await page.goto(BASE + '#stopp-danmarksplass');
+  await page.waitForSelector('#stopDeps .dep', { timeout: 30000 });
+  const sits = await page.locator('#stopDeps .sit').count();
+  warn('Avvik (Entur situations)', true, sits ? `${sits} avganger med avviksmelding` : 'ingen avvik på Danmarksplass akkurat nå');
+  await page.click('#stopMorning');
+  await page.fill('#mmWalk', '4');
+  await page.click('#mmSave');
+  const txt = await page.waitForFunction(() => {
+    const c = document.getElementById('morningCard');
+    return c && !c.hidden && c.querySelectorAll('.mm-row').length ? c.textContent.replace(/\s+/g, ' ').trim() : false;
+  }, null, { timeout: 25000 }).then(h => h.jsonValue());
+  check('Min morgen-kort', !!txt, String(txt).slice(0, 110));
+  await page.screenshot({ path: SHOTS + '3b-min-morgen.png' });
+});
+
+// 3c) Båt og ferje
+await step('Båt og ferje', async () => {
+  const f = await page.evaluate(() => ({ ok: window.__blk.FERRY.ok, err: window.__blk.FERRY.err, n: window.__blk.FERRY.list.length,
+    boats: [...window.__blk.vehicles.values()].filter(r => r.data.mode === 'boat').length }));
+  warn('Ferge-spørring (stort område)', f.ok, f.ok ? `${f.n} fartøy i området, ${f.boats} båter totalt på kartet` : f.err);
+  await page.goto(BASE + '#kart');
+  await page.click('.tab[data-view="stop"]');
+  if (await page.locator('#stopBack').isVisible().catch(() => false)) await page.click('#stopBack');
+  await page.click('#boatQuick [data-q="Strandkaiterminalen"]');
+  const n = await page.waitForFunction(() => {
+    const t = document.querySelector('#stopBox .ttl')?.textContent || '';
+    if (!/strandkai/i.test(t)) return false;
+    const k = document.querySelectorAll('#stopDeps .dep').length;
+    if (k) return k;
+    return /Ingen avganger/.test(document.getElementById('stopDeps')?.textContent || '') ? -1 : false;
+  }, null, { timeout: 30000 }).then(h => h.jsonValue());
+  warn('Båtavganger fra Strandkaiterminalen', n > 0, n > 0 ? `${n} båtavganger` : 'ingen båtavganger de neste timene');
+  await page.screenshot({ path: SHOTS + '3c-baat.png' });
+});
+
 // 4) Bergen nå: vær + strømpris
 await step('Bergen nå', async () => {
   await page.goto(BASE + '#bergen-na');

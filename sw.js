@@ -1,11 +1,13 @@
 // Bergen live – service worker
 // Appskallet caches slik at appen åpner raskt og fungerer som installert app.
 // Sanntidsdata (Entur, MET, strømpris) og kartfliser går alltid rett til nettet.
-const CACHE = 'bergenlive-v3';
+importScripts('config.js');
+const CACHE = 'bergenlive-v4';
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './config.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
@@ -50,6 +52,29 @@ self.addEventListener('fetch', e => {
     );
   }
   // Alt annet (API-er, kartfliser) går rett til nettet
+});
+
+// Push fra Worker-en: meldingen ligger enten i selve pushen, eller hentes fra Worker-en
+self.addEventListener('push', e => {
+  e.waitUntil((async () => {
+    let msgs = [];
+    try { if (e.data) { const d = e.data.json(); msgs = Array.isArray(d) ? d : [d]; } } catch (err) {}
+    const api = String(self.BLK_CONFIG?.PUSH_API || '').replace(/\/+$/, '');
+    if (!msgs.length && api) {
+      try {
+        const sub = await self.registration.pushManager.getSubscription();
+        const r = await fetch(api + '/messages?endpoint=' + encodeURIComponent(sub.endpoint));
+        msgs = await r.json();
+      } catch (err) {}
+    }
+    if (!msgs.length) msgs = [{ title: 'Bergen live', body: 'Det er en oppdatering om reisen din.' }];
+    for (const m of msgs) {
+      await self.registration.showNotification(m.title || 'Bergen live', {
+        body: m.body || '', tag: m.tag, renotify: !!m.tag,
+        icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', data: { url: m.url || './' },
+      });
+    }
+  })());
 });
 
 // Trykk på varsel → åpne/fokuser appen

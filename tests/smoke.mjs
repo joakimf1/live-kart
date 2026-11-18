@@ -120,6 +120,28 @@ await step('Båt og ferje', async () => {
   await page.screenshot({ path: SHOTS + '3c-baat.png' });
 });
 
+// 3d) Fyllingsgrad: rapporterer Skyss hvor fullt kjøretøyene er?
+await step('Fyllingsgrad (occupancy)', async () => {
+  const r = await page.evaluate(async () => {
+    const H = { 'Content-Type': 'application/json', 'ET-Client-Name': 'privat-bergenlivekart-test' };
+    const q = async (url, query) => { const res = await fetch(url, { method: 'POST', headers: H, body: JSON.stringify({ query }) }); return res.json(); };
+    const out = {};
+    for (const f of ['occupancyStatus', 'occupancy']) {
+      const j = await q('https://api.entur.io/realtime/v2/vehicles/graphql', `{ vehicles(codespaceId:"SKY") { mode ${f} } }`);
+      if (j.errors) { out['veh_' + f] = 'feil: ' + j.errors[0].message.slice(0, 80); continue; }
+      const c = {}; for (const v of j.data.vehicles) { const k = (v.mode || '?') + ':' + (v[f] ?? 'null'); c[k] = (c[k] || 0) + 1; }
+      out['veh_' + f] = c;
+    }
+    const j = await q('https://api.entur.io/journey-planner/v3/graphql', `{ stopPlace(id:"NSR:StopPlace:58366") { estimatedCalls(numberOfDepartures:40) { occupancyStatus serviceJourney { line { publicCode } } } } }`);
+    if (j.errors) out.jp = 'feil: ' + j.errors[0].message.slice(0, 80);
+    else { const c = {}; for (const e of j.data.stopPlace?.estimatedCalls || []) { c[e.occupancyStatus ?? 'null'] = (c[e.occupancyStatus ?? 'null'] || 0) + 1; } out.jp = c; }
+    return out;
+  });
+  console.log('OCCUPANCY:', JSON.stringify(r));
+  const any = JSON.stringify(r).match(/(manySeats|fewSeats|standing|full|empty|seatsAvailable|MANY|FEW|STANDING|FULL|EMPTY)/i);
+  warn('Fyllingsgrad (occupancy)', !!any, any ? 'Skyss rapporterer fyllingsgrad' : 'ingen fyllingsdata fra Skyss');
+});
+
 // 4) Bergen nå: vær + strømpris
 await step('Bergen nå', async () => {
   await page.goto(BASE + '#bergen-na');

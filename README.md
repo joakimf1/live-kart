@@ -42,6 +42,10 @@ python3 -m http.server
 # (service worker og installasjon krever http/https, ikke file://)
 ```
 
+## Automatisk test
+
+`.github/workflows/smoke.yml` åpner siden i ekte Chromium og sjekker at kjøretøy, avganger, følg-buss, vær, strømpris og nedbørkart laster. Den kjører ved hver opplasting og hver morgen kl. 06:30, da mot den publiserte siden. Resultatet vises som en tabell under *Actions*, med skjermbilder vedlagt. GitHub sender e-post hvis noe feiler.
+
 ## Publisere
 
 Siden kan legges ut gratis med GitHub Pages: gå til Settings → Pages, velg branch `main` og mappen `/ (root)`.

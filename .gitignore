@@ -1,0 +1,4 @@
+tests/shots/
+tests/node_modules/
+tests/package*.json
+node_modules/

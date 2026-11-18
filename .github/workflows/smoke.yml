@@ -1,0 +1,46 @@
+name: Røyktest
+
+# Kjører ved hver opplasting (tester koden i commiten) og hver morgen kl. 06:30
+# (tester den publiserte siden). GitHub sender e-post hvis en kjøring feiler.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '30 5 * * *'   # 05:30 UTC = 06:30 norsk vintertid
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installer Playwright
+        working-directory: tests
+        run: |
+          npm init -y > /dev/null
+          npm i --no-save playwright@1
+          npx playwright install --with-deps chromium
+
+      - name: Start lokal server
+        if: github.event_name != 'schedule'
+        run: python3 -m http.server 8000 &
+
+      - name: Kjør røyktest
+        working-directory: tests
+        env:
+          BASE_URL: ${{ github.event_name == 'schedule' && 'https://joakimf1.github.io/live-kart/' || 'http://localhost:8000/' }}
+        run: node smoke.mjs
+
+      - name: Last opp skjermbilder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skjermbilder
+          path: tests/shots
+          retention-days: 7

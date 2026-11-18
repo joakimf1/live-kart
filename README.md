@@ -15,6 +15,7 @@ Live-kart over kollektivtrafikken i Bergen: busser, Bybanen og båter i sanntid.
 - **Kartvalg:** mørkt, lyst, Kartverket topo og gråtone, satellitt og OpenSeaMap-sjømerker
 - **Installerbar app (PWA):** «Legg til på Hjem-skjerm» på mobil, eller «Installer» i Chrome og Edge
 - **Varsel når bussen nærmer seg:** trykk på 🔔 ved en avgang og velg hvor mange minutter før du vil ha beskjed. Varselet virker så lenge appen er åpen, også i bakgrunnen. På iPhone kreves det at appen er lagt til på Hjem-skjerm.
+- **Nedbør-tidslinje (☔ Nedbør):** dra eller spill av fra 2 timer bakover (radar) til 12 timer frem (Yr sitt 1 km-varsel) og se regnet komme inn over byen. Piltastene blar frem og tilbake.
 - **Skjermmodus:** stor avgangstavle for iPad eller TV, med klokke og vær, som holder skjermen våken
 
 ## Delbare lenker
@@ -27,6 +28,7 @@ Live-kart over kollektivtrafikken i Bergen: busser, Bybanen og båter i sanntid.
 | `#skjerm/58366,58367/linjer=20,21` | Skjermmodus for flere holdeplasser, med linjefilter |
 | `#linje/20` | Kartet filtrert på linje 20 (flere: `#linje/20,21`) |
 | `#bergen-na` | Bergen nå-oversikten |
+| `#regn` | Kartet med nedbør-tidslinjen åpen |
 
 Adressen oppdateres automatisk mens du bruker siden, og «Del»-knappen på en holdeplass kopierer lenken.
 
@@ -53,6 +55,8 @@ Siden kan legges ut gratis med GitHub Pages: gå til Settings → Pages, velg br
 | Holdeplass-søk | Entur Geocoder |
 | Vær og regnvarsel | [MET Norway](https://api.met.no) (nowcast / locationforecast) |
 | Strømpris | [hvakosterstrommen.no](https://www.hvakosterstrommen.no) |
+| Radar (siste 2 t) | [RainViewer](https://www.rainviewer.com/api.html), gratis for personlig og mindre bruk, kreditering påkrevd |
+| Nedbørvarsel på kart | MET Norway Victoria WMS (`public-victoria.met.no`), laget `precipitation_amount_acc1h_yr_1_0km_1h` |
 | Kart | OpenStreetMap, Kartverket, Esri, OpenSeaMap |
 
 Entur ber om at klienter identifiserer seg med `ET-Client-Name`. Endre `CLIENT` øverst i skriptet til ditt eget navn, for eksempel `dittnavn-bergenlive`.

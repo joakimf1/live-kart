@@ -196,7 +196,29 @@
   #screen.idle .sc-btns{opacity:0}
   body.screen-on{overflow:hidden}
 
+  /* rain timeline */
+  .rain-ctl{background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);font:600 12px Inter,sans-serif;padding:7px 10px;cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.4)}
+  .rain-ctl.on{background:#3b82f6;border-color:#3b82f6;color:#fff}
+  .leaflet-rain-pane .leaflet-layer{transition:opacity .35s}
+  #rainBar{position:fixed;left:340px;right:0;bottom:22px;margin:0 auto;width:min(720px,calc(100vw - 372px));z-index:850;background:rgba(22,29,34,.96);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,.45);backdrop-filter:blur(6px)}
+  #rainBar[hidden]{display:none}
+  #rainPlay{width:40px;height:40px;border-radius:50%;border:none;background:#3b82f6;color:#fff;font-size:15px;cursor:pointer;flex:none}
+  #rainBar .rb-main{flex:1;min-width:0}
+  #rainBar .rb-top{display:flex;align-items:baseline;gap:8px;font-size:13px;margin-bottom:4px;flex-wrap:wrap}
+  #rainBar .rb-top b{font-size:15px;font-variant-numeric:tabular-nums}
+  .rb-kind{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:#1e3a5f;color:#93c5fd}
+  .rb-kind.fc{background:#3f2d12;color:#fcd34d}
+  .rb-note{font-size:11px;color:var(--muted);margin-left:auto}
+  #rainSlider{width:100%;margin:0;accent-color:#3b82f6;height:22px;cursor:pointer}
+  .rb-ticks{position:relative;height:14px;font-size:10px;color:var(--muted)}
+  .rb-ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+  .rb-ticks span.now{color:var(--text);font-weight:700}
+  #rainClose{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:6px;flex:none}
+
   @media (max-width:760px){
+    #rainBar{left:8px;right:8px;width:auto;bottom:142px;padding:8px 10px;gap:8px}
+    #rainPlay{width:34px;height:34px}
+    .rb-note{display:none}
     #alertsBar{left:12px;right:60px;max-width:none}
     #side{position:absolute;left:0;right:0;bottom:0;width:auto;height:62%;border-right:none;border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(calc(100% - 132px));transition:transform .25s}
     #side.open{transform:none}
@@ -266,6 +288,15 @@
   <div id="map"></div>
 </div>
 <div id="alertsBar" hidden></div>
+<div id="rainBar" hidden>
+  <button id="rainPlay" aria-label="Spill av">▶</button>
+  <div class="rb-main">
+    <div class="rb-top"><b id="rainTime">–</b><span class="rb-kind" id="rainKind">Radar</span><span class="rb-note" id="rainNote"></span></div>
+    <input type="range" id="rainSlider" min="0" max="1" step="1" value="0" aria-label="Tidspunkt">
+    <div class="rb-ticks" id="rainTicks"></div>
+  </div>
+  <button id="rainClose" aria-label="Lukk nedbørkart">✕</button>
+</div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="modal" hidden><div id="modalBody"></div></div>
 <div id="screen" hidden>
@@ -358,6 +389,7 @@
 
   map.createPane('stops'); map.getPane('stops').style.zIndex = 450;
   map.createPane('route'); map.getPane('route').style.zIndex = 440;
+  map.createPane('rain'); map.getPane('rain').style.zIndex = 420; map.getPane('rain').style.pointerEvents = 'none';
   const stopRenderer = L.canvas({pane:'stops'});
   const stopsLayer = L.layerGroup().addTo(map);
   let stopMarker = null;
@@ -911,9 +943,10 @@
       <div class="tile w" id="nowStats"></div>
       <div class="tile" id="nowPunct"></div>
       <div class="tile clickable" id="nowWorst"></div>
-      <div class="tile w"><h3>Været i sentrum</h3>${wHtml}</div>
+      <div class="tile w clickable" id="nowWeather"><h3>Været i sentrum <span style="float:right;text-transform:none;letter-spacing:0;color:var(--accent);font-weight:500">Vis nedbørkart →</span></h3>${wHtml}</div>
       <div class="tile w"><h3>Strøm · Vest-Norge (NO5)</h3>${pHtml}</div>
       <div class="tile w" id="nowBoats"></div>`;
+    $('nowWeather').onclick = () => openRain();
     renderNowStats();
   }
   function renderNowStats(){
@@ -940,6 +973,114 @@
       <p>${boats.length ? [...new Set(boats.map(b => b.dest).filter(Boolean))].slice(0,5).map(esc).join(' · ') : 'Ingen båtruter rapporterer posisjon akkurat nå.'}</p>
       <p style="margin-top:6px">Cruiseskip og Hurtigruten krever AIS-data, som ikke er med ennå.</p>`;
   }
+
+  // ================= Nedbør-tidslinje =================
+  // Fortid: radar fra RainViewer (10-min, siste 2 t). Fremtid: Yr 1 km-nedbør fra MET Victoria WMS (time for time).
+  const YR_WMS = 'https://public-victoria.met.no/wms', YR_LAYER = 'precipitation_amount_acc1h_yr_1_0km_1h', YR_STYLE = 'Precipitation_1h';
+  const RAIN = {on:false, frames:[], idx:0, nowIdx:0, layers:new Map(), playing:false, timer:null, built:0, refresh:null};
+  const H = 3600000;
+  const isoH = t => new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+  async function buildRainFrames(){
+    const frames = [], now = Date.now();
+    try{
+      const j = await (await fetch('https://api.rainviewer.com/public/weather-maps.json')).json();
+      for (const f of (j.radar?.past || [])) frames.push({t:f.time*1000, kind:'radar', url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_0.png`});
+    }catch(e){}
+    frames.sort((a,b) => a.t-b.t);
+    if (!frames.length){ // reserve: Yr-kartet for de to siste timene
+      const h0 = Math.floor(now/H)*H; frames.push({t:h0-H, kind:'yr'}, {t:h0, kind:'yr'});
+    }
+    const nowIdx = frames.length-1;
+    const start = Math.ceil((now+60000)/H)*H;
+    for (let h=0; h<=12; h++) frames.push({t:start+h*H, kind:'yr'});
+    RAIN.frames = frames; RAIN.nowIdx = nowIdx; RAIN.built = Date.now();
+  }
+  const fkey = f => f.kind+f.t;
+  function rainLayer(f){
+    let l = RAIN.layers.get(fkey(f)); if (l) return l;
+    if (f.kind==='radar')
+      l = L.tileLayer(f.url, {pane:'rain', opacity:0, maxNativeZoom:7, maxZoom:19, attribution:'Radar: <a href="https://www.rainviewer.com" target="_blank" rel="noopener">RainViewer</a>'});
+    else
+      l = L.tileLayer.wms(YR_WMS, {pane:'rain', opacity:0, layers:YR_LAYER, styles:YR_STYLE, format:'image/png', transparent:true, version:'1.3.0', time:isoH(f.t),
+        attribution:'Nedbør: <a href="https://www.met.no" target="_blank" rel="noopener">MET Norway</a> / Yr'});
+    l.addTo(map); RAIN.layers.set(fkey(f), l); return l;
+  }
+  function showFrame(i){
+    i = Math.max(0, Math.min(RAIN.frames.length-1, i)); RAIN.idx = i;
+    const keep = new Set([i-1, i, i+1, i+2].filter(x => x>=0 && x<RAIN.frames.length).map(x => fkey(RAIN.frames[x])));
+    for (const x of [i, i+1, i+2]) if (RAIN.frames[x]) rainLayer(RAIN.frames[x]);   // forhåndslast de neste
+    for (const [k,l] of RAIN.layers){
+      if (!keep.has(k)){ map.removeLayer(l); RAIN.layers.delete(k); }
+      else l.setOpacity(k===fkey(RAIN.frames[i]) ? .78 : 0);
+    }
+    updateRainUI();
+  }
+  function updateRainUI(){
+    const f = RAIN.frames[RAIN.idx]; if (!f) return;
+    const sl = $('rainSlider'); sl.max = RAIN.frames.length-1; sl.value = RAIN.idx;
+    const pctNow = RAIN.nowIdx/(RAIN.frames.length-1)*100;
+    sl.style.background = 'none';
+    const dh = Math.round((f.t - Date.now())/H);
+    if (f.kind==='radar'){
+      const ago = Math.round((Date.now()-f.t)/60000);
+      $('rainTime').textContent = 'kl. ' + clock(f.t);
+      $('rainKind').textContent = RAIN.idx===RAIN.nowIdx ? 'Radar · siste' : `Radar · ${ago} min siden`; $('rainKind').className = 'rb-kind';
+      $('rainNote').textContent = 'Målt nedbør';
+    } else if (f.t <= Date.now()){
+      $('rainTime').textContent = 'kl. ' + clock(f.t-H) + '–' + clock(f.t);
+      $('rainKind').textContent = 'Yr-kart'; $('rainKind').className = 'rb-kind fc';
+      $('rainNote').textContent = 'Nedbør siste time';
+    } else {
+      $('rainTime').textContent = 'kl. ' + clock(f.t-H) + '–' + clock(f.t);
+      $('rainKind').textContent = `Varsel · om ${Math.max(1,dh)} t`; $('rainKind').className = 'rb-kind fc';
+      $('rainNote').textContent = 'Varslet nedbør (mm/time) – usikkerheten øker utover';
+    }
+    const n = RAIN.frames.length-1, pos = i => (i/n*100)+'%';
+    const first = RAIN.frames[0], last = RAIN.frames[n];
+    $('rainTicks').innerHTML = `<span style="left:${pos(0)};transform:none">${clock(first.t)}</span>
+      <span class="now" style="left:${pctNow}%">Nå</span>
+      ${n-RAIN.nowIdx>6 ? `<span style="left:${pos(RAIN.nowIdx+6)}">+6 t</span>` : ''}
+      <span style="left:${pos(n)};transform:translateX(-100%)">${clock(last.t)}</span>`;
+    $('rainPlay').textContent = RAIN.playing ? '❚❚' : '▶';
+  }
+  function playRain(on){
+    RAIN.playing = on; clearTimeout(RAIN.timer);
+    const step = () => {
+      if (!RAIN.playing) return;
+      const atEnd = RAIN.idx >= RAIN.frames.length-1;
+      showFrame(atEnd ? 0 : RAIN.idx+1);
+      RAIN.timer = setTimeout(step, RAIN.idx===RAIN.frames.length-1 ? 1800 : RAIN.idx===RAIN.nowIdx ? 1200 : 650);
+    };
+    if (on) step(); else updateRainUI();
+  }
+  async function openRain(){
+    if (!RAIN.on){
+      RAIN.on = true; $('rainBar').hidden = false; rainBtn?.classList.add('on');
+      $('rainTime').textContent = 'Henter …';
+      await buildRainFrames(); showFrame(RAIN.nowIdx);
+      clearInterval(RAIN.refresh);
+      RAIN.refresh = setInterval(async () => { if (!RAIN.on) return; const wasNow = RAIN.idx===RAIN.nowIdx; await buildRainFrames(); showFrame(wasNow ? RAIN.nowIdx : Math.min(RAIN.idx, RAIN.frames.length-1)); }, 10*60000);
+    }
+    if (window.innerWidth <= 760) $('side').classList.remove('open');
+  }
+  function closeRain(){
+    RAIN.on = false; playRain(false); clearInterval(RAIN.refresh);
+    for (const l of RAIN.layers.values()) map.removeLayer(l); RAIN.layers.clear();
+    $('rainBar').hidden = true; rainBtn?.classList.remove('on');
+  }
+  $('rainSlider').addEventListener('input', e => { const v = +e.target.value; RAIN.playing = false; clearTimeout(RAIN.timer); showFrame(v); });
+  $('rainPlay').onclick = () => playRain(!RAIN.playing);
+  $('rainClose').onclick = closeRain;
+  document.addEventListener('keydown', e => {
+    if (!RAIN.on || e.target.tagName==='INPUT' && e.target.type!=='range') return;
+    if (e.key==='ArrowRight'){ playRain(false); showFrame(RAIN.idx+1); } else if (e.key==='ArrowLeft'){ playRain(false); showFrame(RAIN.idx-1); }
+  });
+  let rainBtn = null;
+  const RainCtl = L.Control.extend({ options:{position:'topright'}, onAdd(){
+    const b = L.DomUtil.create('button', 'rain-ctl'); b.type='button'; b.textContent = '☔ Nedbør'; b.title = 'Radar og nedbørvarsel';
+    L.DomEvent.disableClickPropagation(b); b.onclick = () => RAIN.on ? closeRain() : openRain(); rainBtn = b; return b; } });
+  new RainCtl().addTo(map);
 
   // ================= Toast + modal =================
   let toastT;
@@ -1096,6 +1237,7 @@
         if (vehicles.size) applyLineCodes(codes); else pendingLines = codes;
       }
       else if (h==='bergen-na' || h==='na') setView('now');
+      else if (h==='regn' || h==='nedbor') openRain();
     }catch(e){ /* ugyldig lenke – ignorer */ }
     finally{ applyingHash = false; }
   }

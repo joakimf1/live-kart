@@ -1451,7 +1451,11 @@
       else if (h==='morgen'){ if (morning){ forceMorning = true; loadMorning(); } else toast('Sett opp ☀ Min morgen fra en holdeplass først.'); }
       else if (h==='favoritt'){ const f = load('blk.favs', []); if (f.length) openStop(f[0], true); else { setView('stop'); toast('Du har ingen favoritt ennå – lagre en holdeplass med ☆.'); } }
     }catch(e){ /* ugyldig lenke – ignorer */ }
-    finally{ applyingHash = false; }
+    finally{
+      applyingHash = false;
+      // Skriv om til fast form (f.eks. #stopp-navn → #stopp/123/navn), slik at samme lenke kan åpnes igjen senere
+      if ($('screen').hidden){ if (view==='stop' && curStop) setStopHash(); else if (view==='lines') updateLineHash(); }
+    }
   }
   window.addEventListener('hashchange', applyHash);
   async function shareLink(hash, title){

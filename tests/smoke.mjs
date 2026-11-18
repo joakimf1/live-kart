@@ -41,8 +41,8 @@ await step('Kjøretøy fra Entur', async () => {
 });
 
 // 2) Holdeplass + avganger (via navnelenke → geocoder → Journey Planner)
-await step('Avganger fra Byparken', async () => {
-  await page.goto(BASE + '#stopp-byparken');
+await step('Avganger fra Danmarksplass', async () => {
+  await page.goto(BASE + '#stopp-danmarksplass');
   const n = await page.waitForFunction(() => {
     const err = document.querySelector('#stopDeps .err-t');
     if (err) return -1;
@@ -50,7 +50,7 @@ await step('Avganger fra Byparken', async () => {
     return k > 0 ? k : false;
   }, null, { timeout: 30000 }).then(h => h.jsonValue());
   const title = await page.textContent('#stopBox .ttl').catch(() => '');
-  check('Avganger fra Byparken', n > 0, n > 0 ? `${n} avganger fra «${title?.trim()}»` : await page.textContent('#stopDeps'));
+  check('Avganger fra Danmarksplass', n > 0, n > 0 ? `${n} avganger fra «${title?.trim()}»` : await page.textContent('#stopDeps'));
   await page.screenshot({ path: SHOTS + '2-holdeplass.png' });
 });
 

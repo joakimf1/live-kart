@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bergen live – kollektivtrafikk</title>
+<meta name="description" content="Busser, Bybanen og båter i Bergen i sanntid – avganger, varsler og vær.">
+<meta name="theme-color" content="#161d22">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bergen live">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -134,7 +143,61 @@
   .leaflet-tooltip.stoptip::before{display:none}
   .dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)}
 
+  /* header / install */
+  .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  /* bell on departures */
+  .dep{grid-template-columns:44px 1fr auto 30px!important}
+  .bell{width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0}
+  .bell:hover{background:var(--panel2);border-color:var(--line);color:var(--text)}
+  .bell.on{color:#fbbf24}
+  .bell svg{width:16px;height:16px}
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap}
+  /* alerts bar */
+  #alertsBar{position:fixed;top:12px;left:352px;z-index:900;display:flex;flex-direction:column;gap:6px;max-width:300px}
+  .al{display:flex;align-items:center;gap:10px;background:rgba(22,29,34,.95);border:1px solid var(--line);border-radius:12px;padding:8px 8px 8px 10px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4);cursor:pointer;backdrop-filter:blur(6px)}
+  .al small{display:block;color:var(--muted);font-size:11px}
+  .al button{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 6px}
+  /* toast */
+  #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#f1f5f9;color:#0b0f12;font-size:14px;font-weight:600;padding:11px 16px;border-radius:12px;z-index:3000;transition:all .25s;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:min(92vw,440px);text-align:center}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+  /* modal */
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2500;display:flex;align-items:center;justify-content:center;padding:16px}
+  #modal[hidden]{display:none}
+  #modalBody{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  #modalBody h3{margin:0 0 6px;font-size:17px}
+  #modalBody ol{padding-left:20px;font-size:14px;line-height:1.7;margin:10px 0}
+  #modalBody .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:14px 0}
+  #modalBody .opts .iconbtn{padding:10px 6px;font-size:13px}
+  #modalBody input{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font:inherit;font-size:12px}
+  /* screen mode */
+  #screen{position:fixed;inset:0;z-index:2000;background:#0b0f12;color:#f1f5f9;display:flex;flex-direction:column;padding:clamp(16px,2.5vw,40px)}
+  #screen[hidden]{display:none}
+  .sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:clamp(10px,1.6vw,24px);border-bottom:2px solid #1f2a31}
+  .sc-title{font-size:clamp(24px,3.4vw,56px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+  .sc-sub{font-size:clamp(13px,1.3vw,22px);color:var(--muted);margin-top:6px}
+  .sc-right{text-align:right;flex:none}
+  .sc-clock{font-size:clamp(30px,4.4vw,76px);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1}
+  .sc-weather{font-size:clamp(13px,1.3vw,22px);color:var(--muted);margin-top:6px}
+  .sc-body{flex:1;min-height:0;overflow:hidden;display:grid;gap:clamp(16px,3vw,48px);padding-top:clamp(4px,.8vw,12px)}
+  .sc-body.multi{grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))}
+  .sc-col h2{font-size:clamp(16px,1.7vw,28px);margin:clamp(8px,1vw,16px) 0 4px;color:var(--muted);font-weight:600}
+  .sc-row{display:grid;grid-template-columns:auto 1fr auto;gap:clamp(12px,1.6vw,28px);align-items:center;padding:clamp(8px,1.1vw,18px) 0;border-bottom:1px solid #1a242b}
+  .sc-row .badge{min-width:clamp(52px,5.6vw,100px);height:clamp(34px,3.8vw,64px);font-size:clamp(17px,2.1vw,34px);border-radius:clamp(8px,.8vw,14px)}
+  .sc-dest{font-size:clamp(18px,2.3vw,40px);font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sc-dest small{display:block;font-size:clamp(12px,1.15vw,20px);font-weight:500;color:var(--muted);margin-top:2px}
+  .sc-time{font-size:clamp(20px,2.6vw,46px);font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+  .sc-time.soon{color:#fbbf24}
+  .sc-time.cx{color:#f87171;text-decoration:line-through}
+  .sc-empty{font-size:clamp(16px,1.8vw,30px);color:var(--muted)}
+  .sc-foot{display:flex;justify-content:space-between;align-items:center;padding-top:12px;font-size:clamp(11px,1vw,16px);color:#55656f;transition:opacity .4s}
+  .sc-btns{display:flex;gap:8px}
+  .sc-btns button{background:#1d262d;border:1px solid #2a353d;color:#e8eef2;border-radius:10px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer}
+  #screen.idle{cursor:none}
+  #screen.idle .sc-btns{opacity:0}
+  body.screen-on{overflow:hidden}
+
   @media (max-width:760px){
+    #alertsBar{left:12px;right:60px;max-width:none}
     #side{position:absolute;left:0;right:0;bottom:0;width:auto;height:62%;border-right:none;border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(calc(100% - 132px));transition:transform .25s}
     #side.open{transform:none}
     #toggle{display:block;position:absolute;top:7px;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px;background:var(--line);border:none;cursor:pointer;padding:0}
@@ -146,9 +209,12 @@
 <div id="app">
   <aside id="side">
     <button id="toggle" aria-label="Vis/skjul panel"></button>
-    <header>
-      <h1>Bergen live</h1>
-      <div class="sub">Busser, Bybanen og båter i sanntid</div>
+    <header class="hdr">
+      <div>
+        <h1>Bergen live</h1>
+        <div class="sub">Busser, Bybanen og båter i sanntid</div>
+      </div>
+      <button class="iconbtn" id="installBtn" hidden>Installer app</button>
     </header>
     <div class="status"><span class="dot wait" id="dot"></span><span id="statusText">Kobler til Entur…</span></div>
     <nav class="tabs">
@@ -198,6 +264,17 @@
     <footer>Data: <a href="https://developer.entur.org" target="_blank" rel="noopener">Entur</a>, <a href="https://api.met.no" target="_blank" rel="noopener">MET</a>, <a href="https://www.hvakosterstrommen.no" target="_blank" rel="noopener">hvakosterstrommen.no</a> · Kart © OpenStreetMap, Kartverket, Esri</footer>
   </aside>
   <div id="map"></div>
+</div>
+<div id="alertsBar" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="modal" hidden><div id="modalBody"></div></div>
+<div id="screen" hidden>
+  <div class="sc-top">
+    <div><div class="sc-title" id="scTitle">Henter …</div><div class="sc-sub" id="scSub"></div></div>
+    <div class="sc-right"><div class="sc-clock" id="scClock"></div><div class="sc-weather" id="scWeather"></div></div>
+  </div>
+  <div class="sc-body" id="scBody"></div>
+  <div class="sc-foot"><span>Bergen live · sanntid fra Entur</span><span class="sc-btns"><button id="scFull">Fullskjerm</button><button id="scClose">Lukk ✕</button></span></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -357,6 +434,7 @@
       }
       prune('rt', seen);
       lastOk = Date.now(); failCount = 0;
+      if (pendingLines){ applyLineCodes(pendingLines); pendingLines = null; }
       render();
     }catch(e){ failCount++; setStatus('err', e.message); }
     finally{ setTimeout(pollVehicles, failCount ? Math.min(30000, POLL_MS*2**failCount) : POLL_MS); }
@@ -485,6 +563,9 @@
     document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id==='v-'+v));
     if (v==='now') renderNow();
     if (v==='stop' && !curStop){ const f = load('blk.favs', []); if (f.length) openStop(f[0], false); else renderStopSearch(); }
+    if (v==='now') setHash('bergen-na');
+    else if (v==='lines') updateLineHash();
+    else if (v==='stop' && !curStop) setHash('');
   }
   document.querySelector('.tabs').addEventListener('click', e => {
     const t = e.target.closest('.tab'); if (!t) return;
@@ -541,9 +622,9 @@
   $('modes').addEventListener('click', e => { const b=e.target.closest('[data-mode]'); if (!b) return; const m=b.dataset.mode;
     hiddenModes.has(m)?hiddenModes.delete(m):hiddenModes.add(m); store('blk.hiddenModes',[...hiddenModes]); render(); if (m==='tram' && !hiddenModes.has('tram')) bbPoll(); });
   $('lines').addEventListener('click', e => { const b=e.target.closest('[data-k]'); if (!b) return; const k=b.dataset.k;
-    selected.has(k)?selected.delete(k):selected.add(k); store('blk.selected',[...selected]); render();
+    selected.has(k)?selected.delete(k):selected.add(k); store('blk.selected',[...selected]); render(); updateLineHash();
     if (selected.has(k)){ const pts=[...vehicles.values()].filter(r => lineKey(r.data)===k).map(r => r.to); if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(.3), {maxZoom:14}); } });
-  $('clearSel').addEventListener('click', () => { selected.clear(); store('blk.selected',[]); render(); });
+  $('clearSel').addEventListener('click', () => { selected.clear(); store('blk.selected',[]); render(); updateLineHash(); });
   $('q').addEventListener('input', e => { query=e.target.value.trim().toLowerCase(); render(); });
   $('colorSeg').addEventListener('click', e => { const b=e.target.closest('[data-c]'); if (!b) return; colorMode=b.dataset.c; store('blk.color',colorMode); refreshIcons(); render(); });
   $('toggle').addEventListener('click', () => $('side').classList.toggle('open'));
@@ -567,7 +648,7 @@
     followId = null; following = false; clearInterval(vehTimer);
     if (r){ r.sig=sigOf(r.data); r.marker.setIcon(iconFor(r.data)); r.marker.setZIndexOffset(0); }
     if (vehRoute){ vehRoute.remove(); vehRoute=null; }
-    if (goBack) setView(prevView || 'lines');
+    if (goBack){ setView(prevView || 'lines'); if (view==='stop' && curStop) setStopHash(); }
     render();
   }
   async function loadVehicleCalls(){
@@ -633,7 +714,8 @@
   }
 
   // ================= Holdeplass / avgangstavle =================
-  let stopDeps = null, stopTimer = null, stopFilter = new Set(), stopLoading = false;
+  let stopDeps = null, stopTimer = null, stopFilter = new Set(), stopLoading = false, lastStopList = [];
+  const BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
   function renderStopSearch(){ $('stopBox').innerHTML = ''; $('stopSearchBox').hidden = false; renderFavs(); }
   function renderFavs(){
     const f = load('blk.favs', []);
@@ -665,15 +747,17 @@
     $('stopSearchBox').hidden = true;
     if (stopMarker) stopMarker.remove();
     if (s.lat){
-      stopMarker = L.circleMarker([s.lat,s.lon], {pane:'stops', radius:9, color:'#60a5fa', weight:3, fillColor:'#0b0f12', fillOpacity:1}).addTo(map);
+      try{ stopMarker = L.circleMarker([s.lat,s.lon], {pane:'stops', radius:9, color:'#60a5fa', weight:3, fillColor:'#0b0f12', fillOpacity:1}).addTo(map); }catch(e){ stopMarker = null; }
       if (pan) map.setView([s.lat,s.lon], Math.max(map.getZoom(), 15));
     }
     renderStop(); loadStopDeps();
     clearInterval(stopTimer); stopTimer = setInterval(loadStopDeps, 20000);
+    setStopHash();
   }
+  function setStopHash(){ if (curStop) setHash(`stopp/${stopNum(curStop.id)}${curStop.name && curStop.name!=='…' ? '/'+slugify(curStop.name) : ''}`); }
   function closeStop(){
     curStop = null; clearInterval(stopTimer); if (stopMarker){ stopMarker.remove(); stopMarker=null; }
-    $('stopQ').value = ''; renderStopSearch();
+    $('stopQ').value = ''; renderStopSearch(); setHash('');
   }
   async function loadStopDeps(){
     if (!curStop || stopLoading) return; stopLoading = true;
@@ -684,7 +768,8 @@
           destinationDisplay{frontText} quay{publicCode} serviceJourney{id line{publicCode transportMode}} } } }`);
       if (curStop?.id !== id) return;
       const sp = data.stopPlace;
-      if (sp){ curStop.name = sp.name; if (!curStop.lat && sp.latitude){ curStop.lat=sp.latitude; curStop.lon=sp.longitude; openStop(curStop, true); return; } }
+      if (sp){ const named = curStop.name==='…'; curStop.name = sp.name; if (named && view==='stop') setStopHash();
+        if (!curStop.lat && sp.latitude){ curStop.lat=sp.latitude; curStop.lon=sp.longitude; stopLoading=false; openStop(curStop, true); return; } }
       stopDeps = sp?.estimatedCalls || [];
     }catch(e){ stopDeps = {error:e.message}; }
     finally{ stopLoading = false; }
@@ -703,15 +788,21 @@
     }
     $('stopBox').innerHTML = `
       <div class="section">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
           <button class="link" id="stopBack" style="font-size:13px">← Søk</button>
-          <button class="iconbtn${isFav?' on':''}" id="stopFav">${isFav?'★ Favoritt':'☆ Lagre'}</button>
+          <span class="btnrow">
+            <button class="iconbtn" id="stopShare" title="Del lenke til avgangstavla">Del</button>
+            <button class="iconbtn" id="stopScreen" title="Stor avgangstavle for skjerm/TV">Skjerm</button>
+            <button class="iconbtn${isFav?' on':''}" id="stopFav">${isFav?'★ Favoritt':'☆ Lagre'}</button>
+          </span>
         </div>
         <div class="ttl">${esc(curStop.name)}</div>
         ${lineChips}
       </div>
       <div class="deps" id="stopDeps"></div>`;
     $('stopBack').onclick = closeStop;
+    $('stopShare').onclick = () => shareLink(`stopp/${stopNum(curStop.id)}/${slugify(curStop.name)}`, `Avganger fra ${curStop.name}`);
+    $('stopScreen').onclick = () => openScreen([curStop.id], [...stopFilter], true);
     $('stopFav').onclick = () => { let f = load('blk.favs', []);
       f = isFav ? f.filter(x => x.id!==curStop.id) : [{id:curStop.id, name:curStop.name, lat:curStop.lat, lon:curStop.lon}, ...f].slice(0,8);
       store('blk.favs', f); renderStop(); };
@@ -727,7 +818,8 @@
     const list = stopDeps.filter(c => Date.parse(c.expectedDepartureTime) >= now-30000)
       .filter(c => !stopFilter.size || stopFilter.has(c.serviceJourney?.line?.publicCode)).slice(0, 25);
     if (!list.length){ el.innerHTML = `<p class="hint" style="padding:0 16px">Ingen avganger de neste timene.</p>`; return; }
-    el.innerHTML = list.map(c => {
+    lastStopList = list;
+    el.innerHTML = list.map((c, i) => {
       const l = c.serviceJourney?.line || {}, m = normMode(l.transportMode);
       const t = Date.parse(c.expectedDepartureTime), aimed = Date.parse(c.aimedDepartureTime), dl = Math.round((t-aimed)/60000);
       const vid = c.serviceJourney && bySJ.get(c.serviceJourney.id), v = vid && vehicles.get(vid);
@@ -735,12 +827,21 @@
       if (v){ const p = v.marker.getLatLng(); loc = `<span class="loc">● ${v.data.est?'ca. ':''}${fmtDist(dist([p.lat,p.lng],[curStop.lat,curStop.lon]))} unna</span> · `; }
       const meta = loc + (c.cancellation ? '<span class="cx">Innstilt</span>' : dl>=2 ? `<span class="late-t">${dl} min forsinket</span>` : c.realtime ? '<span class="rt">Sanntid</span>' : 'Rutetid')
         + (c.quay?.publicCode ? ` · Plf. ${esc(c.quay.publicCode)}` : '');
-      return `<button class="dep${v?' live':''}" ${v?`data-v="${esc(vid)}"`:''}>
+      const hasAl = alerts.some(a => a.sj===c.serviceJourney?.id && a.stopId===curStop.id);
+      return `<div class="dep${v?' live':''}" ${v?`data-v="${esc(vid)}"`:''}>
         <span class="badge" style="--c:${MODES[m].color}">${esc(l.publicCode||'?')}</span>
-        <span><div class="d">${esc(c.destinationDisplay?.frontText||'')}</div><div class="m">${meta}</div></span>
-        <span class="t ${c.cancellation?'cx':''}">${relTime(t)}${dl>=2?`<small>${clock(aimed)}</small>`:''}</span></button>`;
+        <span style="min-width:0"><div class="d">${esc(c.destinationDisplay?.frontText||'')}</div><div class="m">${meta}</div></span>
+        <span class="t ${c.cancellation?'cx':''}">${relTime(t)}${dl>=2?`<small>${clock(aimed)}</small>`:''}</span>
+        <button class="bell${hasAl?' on':''}" data-al="${i}" title="${hasAl?'Fjern varsel':'Varsle meg'}" aria-label="${hasAl?'Fjern varsel':'Varsle meg'}">${BELL}</button></div>`;
     }).join('');
-    el.onclick = e => { const b = e.target.closest('[data-v]'); if (b) openVehicle(b.dataset.v, true); };
+    el.onclick = e => {
+      const al = e.target.closest('[data-al]');
+      if (al){ const c = lastStopList[+al.dataset.al]; if (!c) return;
+        const ex = alerts.findIndex(a => a.sj===c.serviceJourney?.id && a.stopId===curStop.id);
+        if (ex>=0){ alerts.splice(ex,1); saveAlerts(); toast('Varsel fjernet'); renderStopLive(); } else pickAlert(c);
+        return; }
+      const b = e.target.closest('[data-v]'); if (b) openVehicle(b.dataset.v, true);
+    };
   }
 
   // ================= Bergen nå =================
@@ -840,12 +941,255 @@
       <p style="margin-top:6px">Cruiseskip og Hurtigruten krever AIS-data, som ikke er med ennå.</p>`;
   }
 
+  // ================= Toast + modal =================
+  let toastT;
+  function toast(msg, ms=3800){ const t=$('toast'); t.innerHTML=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(() => t.classList.remove('on'), ms); }
+  function modal(html){ $('modalBody').innerHTML = html; $('modal').hidden = false; }
+  function closeModal(){ $('modal').hidden = true; }
+  $('modal').addEventListener('click', e => { if (e.target.id==='modal' || e.target.closest('[data-close]')) closeModal(); });
+
+  // ================= PWA / installasjon =================
+  let swReg = null, deferredPrompt = null;
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
+    navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
+  const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints > 1);
+  function updateInstallBtn(){ $('installBtn').hidden = isStandalone() || !(deferredPrompt || isIOS); }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; updateInstallBtn(); });
+  window.addEventListener('appinstalled', () => { deferredPrompt = null; updateInstallBtn(); toast('Bergen live er installert 🎉'); });
+  $('installBtn').onclick = async () => {
+    if (deferredPrompt){ deferredPrompt.prompt(); try{ await deferredPrompt.userChoice; }catch(e){} deferredPrompt = null; updateInstallBtn(); return; }
+    modal(`<h3>Legg til på Hjem-skjerm</h3>
+      <ol><li>Trykk på <b>Del</b>-knappen (firkant med pil opp) i Safari</li><li>Bla ned og velg <b>Legg til på Hjem-skjerm</b></li><li>Trykk <b>Legg til</b></li></ol>
+      <p class="hint">Da åpnes Bergen live som en egen app i fullskjerm – og varsler om bussen din fungerer.</p>
+      <div style="text-align:right;margin-top:12px"><button class="iconbtn" data-close>OK</button></div>`);
+  };
+  updateInstallBtn();
+
+  // ================= Varsler =================
+  async function ensurePermission(){
+    if (!('Notification' in window)) return 'unsupported';
+    if (Notification.permission === 'default'){ try{ return await Notification.requestPermission(); }catch(e){ return 'denied'; } }
+    return Notification.permission;
+  }
+  async function notify(title, body, tag){
+    try{ navigator.vibrate?.([200,100,200]); }catch(e){}
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const opts = {body, tag, renotify:true, icon:'icons/icon-192.png', badge:'icons/icon-192.png', data:{url:location.href}};
+    try{ const reg = swReg || await navigator.serviceWorker?.getRegistration(); if (reg){ await reg.showNotification(title, opts); return; } }catch(e){}
+    try{ new Notification(title, opts); }catch(e){}
+  }
+
+  let alerts = load('blk.alerts', []).filter(a => a.t > Date.now() - 2*60000);
+  function saveAlerts(){ store('blk.alerts', alerts); renderAlertsBar(); }
+  function renderAlertsBar(){
+    const el = $('alertsBar');
+    if (!alerts.length || !$('screen').hidden){ el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = alerts.map((a,i) => `<div class="al" data-i="${i}"><span class="badge" style="--c:${MODES[a.mode]?.color||MODES.bus.color}">${esc(a.line)}</span>
+      <span><b>${relTime(a.t)}</b> fra ${esc(a.stopName)}<small>Mot ${esc(a.dest)} · varsel ${a.mins} min før</small></span>
+      <button data-rm="${i}" aria-label="Fjern varsel">✕</button></div>`).join('');
+  }
+  $('alertsBar').addEventListener('click', e => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm){ alerts.splice(+rm.dataset.rm, 1); saveAlerts(); if (view==='stop') renderStopLive(); return; }
+    const al = e.target.closest('.al'); if (al){ const a = alerts[+al.dataset.i]; if (a) openStop({id:a.stopId, name:a.stopName}, true); }
+  });
+
+  function pickAlert(c){
+    const t = Date.parse(c.expectedDepartureTime), left = (t - Date.now())/60000;
+    const l = c.serviceJourney?.line || {}, m = normMode(l.transportMode);
+    const opts = [1,2,3,5,10,15].filter(x => x < left - 0.5);
+    let note = '';
+    if (!('Notification' in window)) note = isIOS && !isStandalone()
+      ? 'På iPhone kommer varsler bare når Bergen live er lagt til på Hjem-skjermen. Ellers får du beskjed her på siden.'
+      : 'Nettleseren støtter ikke varsler – du får beskjed her på siden.';
+    else if (Notification.permission === 'denied') note = 'Varsler er blokkert i nettleseren – du får beskjed her på siden.';
+    modal(`<h3>Varsle meg</h3>
+      <p class="hint" style="margin-top:0"><span class="badge" style="--c:${MODES[m].color};height:20px;min-width:30px;font-size:11px">${esc(l.publicCode||'?')}</span>
+        mot <b>${esc(c.destinationDisplay?.frontText||'')}</b> går fra ${esc(curStop.name)} ${(r => r==='nå' ? 'nå' : r.includes(':') ? 'kl. '+r : 'om '+r)(relTime(t))}. Når vil du ha beskjed?</p>
+      ${opts.length ? `<div class="opts">${opts.map(x => `<button class="iconbtn" data-m="${x}">${x} min før</button>`).join('')}</div>` : '<p class="hint">Den går straks – for sent å sette varsel.</p>'}
+      ${note ? `<p class="hint">${note}</p>` : ''}
+      <p class="hint">Varselet virker så lenge Bergen live er åpen (også i bakgrunnen).</p>
+      <div style="text-align:right;margin-top:10px"><button class="link" data-close style="font-size:13px">Avbryt</button></div>`);
+    $('modalBody').querySelectorAll('[data-m]').forEach(b => b.onclick = async () => {
+      await ensurePermission();
+      const mins = +b.dataset.m;
+      alerts.push({sj:c.serviceJourney.id, stopId:curStop.id, stopName:curStop.name, line:l.publicCode||'?', mode:m,
+                   dest:c.destinationDisplay?.frontText||'', mins, t});
+      saveAlerts(); closeModal(); renderStopLive();
+      toast(`🔔 Du får beskjed når ${esc(l.publicCode)} er ${mins} min fra ${esc(curStop.name)}.`);
+    });
+  }
+  async function checkAlerts(){
+    if (!alerts.length) return;
+    for (const id of new Set(alerts.map(a => a.stopId))){
+      try{
+        const d = await gql(URL_JP, `{ stopPlace(id:${JSON.stringify(id)}) { estimatedCalls(numberOfDepartures:80, timeRange:14400) { expectedDepartureTime cancellation serviceJourney{id} } } }`);
+        const calls = d.stopPlace?.estimatedCalls || [];
+        for (const a of alerts) if (a.stopId===id){ const c = calls.find(c => c.serviceJourney?.id===a.sj); if (c){ a.t = Date.parse(c.expectedDepartureTime); a.cx = !!c.cancellation; } }
+      }catch(e){}
+    }
+    tickAlerts();
+  }
+  function tickAlerts(){
+    const now = Date.now(); let changed = false;
+    for (let i = alerts.length-1; i >= 0; i--){
+      const a = alerts[i], left = (a.t - now)/60000;
+      if (a.cx){
+        notify(`${a.line} mot ${a.dest} er innstilt`, `Avgangen fra ${a.stopName} kl. ${clock(a.t)} er innstilt.`, 'al-'+a.sj);
+        toast(`⚠️ ${esc(a.line)} mot ${esc(a.dest)} er innstilt.`, 8000); alerts.splice(i,1); changed = true;
+      } else if (left <= a.mins){
+        const when = left <= 0.5 ? 'nå' : `om ${Math.max(1, Math.round(left))} min (kl. ${clock(a.t)})`;
+        notify(`${a.line} mot ${a.dest}`, `Går fra ${a.stopName} ${when}.`, 'al-'+a.sj);
+        toast(`🔔 <b>${esc(a.line)}</b> går fra ${esc(a.stopName)} ${when}!`, 10000);
+        alerts.splice(i,1); changed = true;
+      } else if (now - a.t > 2*60000){ alerts.splice(i,1); changed = true; }
+    }
+    if (changed){ saveAlerts(); if (view==='stop') renderStopLive(); } else renderAlertsBar();
+  }
+
+  // ================= Delbare lenker =================
+  const slugify = s => (s||'').toLowerCase().replace(/æ/g,'ae').replace(/ø/g,'o').replace(/å/g,'a')
+    .normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  const stopNum = id => String(id||'').split(':').pop();
+  let applyingHash = false, pendingLines = null;
+  function setHash(h){
+    if (applyingHash) return;
+    const nh = h ? '#'+h : '';
+    if (location.hash !== nh) history.replaceState(null, '', location.pathname + location.search + nh);
+  }
+  function updateLineHash(){
+    if (view!=='lines') return;
+    const codes = [...new Set([...selected].map(k => k.split('|')[1]))];
+    setHash(codes.length ? 'linje/'+codes.map(encodeURIComponent).join(',') : '');
+  }
+  function applyLineCodes(codes){
+    selected.clear();
+    for (const code of codes){
+      const keys = [...new Set([...vehicles.values()].filter(r => r.data.code===code).map(r => lineKey(r.data)))];
+      (keys.length ? keys : ['bus|'+code]).forEach(k => selected.add(k));
+    }
+    store('blk.selected', [...selected]); render();
+    const pts = [...vehicles.values()].filter(r => selected.has(lineKey(r.data))).map(r => r.to);
+    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(.3), {maxZoom:14});
+  }
+  async function geocodeFirst(text){
+    const u = `${URL_GEO}?text=${encodeURIComponent(text)}&size=5&layers=venue&lang=no&focus.point.lat=${CENTER[0]}&focus.point.lon=${CENTER[1]}`;
+    const j = await (await fetch(u, {headers:{'ET-Client-Name':CLIENT}})).json();
+    const f = (j.features||[]).find(f => (f.properties?.id||'').startsWith('NSR:StopPlace'));
+    return f ? {id:f.properties.id, name:f.properties.name, lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0]} : null;
+  }
+  async function applyHash(){
+    const h = decodeURIComponent(location.hash.slice(1)).trim(); if (!h) return;
+    applyingHash = true;
+    try{
+      let m;
+      if ((m = h.match(/^skjerm\/([\d,]+)(?:\/linjer=([^/]+))?/))) openScreen(m[1].split(',').filter(Boolean).map(n => 'NSR:StopPlace:'+n), m[2] ? m[2].split(',') : [], false);
+      else if ((m = h.match(/^stopp\/(\d+)/))) openStop({id:'NSR:StopPlace:'+m[1], name:'…'}, true);
+      else if ((m = h.match(/^stopp-(.+)$/))){
+        const s = await geocodeFirst(m[1].replace(/-/g,' '));
+        if (s) openStop(s, true); else toast(`Fant ikke holdeplassen «${esc(m[1])}».`);
+      }
+      else if ((m = h.match(/^linje\/(.+)$/))){
+        const codes = m[1].split(',').filter(Boolean); setView('lines');
+        if (vehicles.size) applyLineCodes(codes); else pendingLines = codes;
+      }
+      else if (h==='bergen-na' || h==='na') setView('now');
+    }catch(e){ /* ugyldig lenke – ignorer */ }
+    finally{ applyingHash = false; }
+  }
+  window.addEventListener('hashchange', applyHash);
+  async function shareLink(hash, title){
+    const url = location.origin + location.pathname + '#' + hash;
+    try{ if (navigator.share){ await navigator.share({title, url}); return; } }catch(e){ if (e.name==='AbortError') return; }
+    try{ await navigator.clipboard.writeText(url); toast('Lenke kopiert 📋'); }
+    catch(e){ modal(`<h3>Del lenke</h3><p class="hint">Kopier lenken:</p><input type="text" readonly value="${esc(url)}" style="width:100%" onclick="this.select()">
+      <div style="text-align:right;margin-top:12px"><button class="iconbtn" data-close>Ferdig</button></div>`); }
+  }
+
+  // ================= Skjermmodus =================
+  const SC = {ids:[], lines:[], stops:new Map(), err:'', timer:null, tick:null, wake:null, idleT:null};
+  function openScreen(ids, lines, gesture){
+    if (!ids.length) return;
+    SC.ids = ids; SC.lines = lines; SC.stops = new Map(); SC.err = '';
+    $('screen').hidden = false; document.body.classList.add('screen-on'); renderAlertsBar();
+    setHash(`skjerm/${ids.map(stopNum).join(',')}${lines.length ? '/linjer='+lines.join(',') : ''}`);
+    $('scFull').hidden = !document.fullscreenEnabled;
+    if (gesture && document.fullscreenEnabled && window.innerWidth > 900) document.documentElement.requestFullscreen?.().catch(() => {});
+    loadScreen(); clearInterval(SC.timer); SC.timer = setInterval(loadScreen, 20000);
+    clearInterval(SC.tick); SC.tick = setInterval(renderScreen, 5000);
+    requestWake(); renderScreen(); screenActivity();
+    if (Date.now() - W.t > 5*60000){ W.t = Date.now(); loadWeather(); }
+  }
+  function closeScreen(){
+    $('screen').hidden = true; document.body.classList.remove('screen-on');
+    clearInterval(SC.timer); clearInterval(SC.tick);
+    try{ SC.wake?.release(); }catch(e){} SC.wake = null;
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    renderAlertsBar();
+    if (view==='stop' && curStop) setStopHash(); else if (view==='now') setHash('bergen-na'); else updateLineHash();
+    if (!curStop && SC.ids.length===1){ openStop({id:SC.ids[0], name:SC.stops.get(SC.ids[0])?.name || '…'}, true); }
+  }
+  async function loadScreen(){
+    await Promise.all(SC.ids.map(async id => {
+      try{
+        const d = await gql(URL_JP, `{ stopPlace(id:${JSON.stringify(id)}) { id name
+          estimatedCalls(numberOfDepartures:50, timeRange:14400) { realtime cancellation aimedDepartureTime expectedDepartureTime
+            destinationDisplay{frontText} quay{publicCode} serviceJourney{id line{publicCode transportMode}} } } }`);
+        if (d.stopPlace) SC.stops.set(id, d.stopPlace); SC.err = '';
+      }catch(e){ SC.err = e.message; }
+    }));
+    renderScreen();
+  }
+  function renderScreen(){
+    if ($('screen').hidden) return;
+    const now = Date.now();
+    $('scClock').textContent = clock(now);
+    const names = SC.ids.map(id => SC.stops.get(id)?.name).filter(Boolean);
+    $('scTitle').textContent = names.length ? names.join(' · ') : (SC.err ? 'Får ikke kontakt med Entur' : 'Henter avganger …');
+    $('scSub').textContent = (SC.lines.length ? 'Linje ' + SC.lines.join(', ') : 'Neste avganger') + (SC.err && names.length ? ' · viser sist hentede data' : '');
+    if (W.data){
+      const s = W.data.series, wet = x => x.v > (W.data.kind==='nowcast' ? 0.1 : 0.2), n = s.find(wet);
+      const rain = wet(s[0]) ? 'Regner nå' : n ? `Regn om ca. ${Math.max(5, Math.round((n.t-now)/60000))} min` : 'Opphold';
+      $('scWeather').textContent = `${fmtNum(W.data.temp)}° · ${rain}`;
+    }
+    const multi = SC.ids.length > 1, per = multi ? 8 : 11;
+    $('scBody').className = 'sc-body' + (multi ? ' multi' : '');
+    $('scBody').innerHTML = SC.ids.map(id => {
+      const sp = SC.stops.get(id);
+      if (!sp) return `<section class="sc-col"><p class="sc-empty">${SC.err ? esc(SC.err) : 'Henter …'}</p></section>`;
+      const list = (sp.estimatedCalls||[]).filter(c => Date.parse(c.expectedDepartureTime) >= now - 30000)
+        .filter(c => !SC.lines.length || SC.lines.includes(c.serviceJourney?.line?.publicCode)).slice(0, per);
+      return `<section class="sc-col">${multi ? `<h2>${esc(sp.name)}</h2>` : ''}${list.map(c => {
+        const l = c.serviceJourney?.line || {}, m = normMode(l.transportMode);
+        const t = Date.parse(c.expectedDepartureTime), dl = Math.round((t - Date.parse(c.aimedDepartureTime))/60000);
+        const rt = relTime(t), soon = (t - now) < 90000;
+        const sub = [c.quay?.publicCode ? 'Plattform ' + esc(c.quay.publicCode) : '', c.cancellation ? 'Innstilt' : dl >= 2 ? `${dl} min forsinket (${clock(Date.parse(c.aimedDepartureTime))})` : ''].filter(Boolean).join(' · ');
+        return `<div class="sc-row"><span class="badge" style="--c:${MODES[m].color}">${esc(l.publicCode||'?')}</span>
+          <span class="sc-dest">${esc(c.destinationDisplay?.frontText||'')}${sub ? `<small>${sub}</small>` : ''}</span>
+          <span class="sc-time${c.cancellation ? ' cx' : soon ? ' soon' : ''}">${rt}</span></div>`;
+      }).join('') || '<p class="sc-empty">Ingen avganger de neste timene.</p>'}</section>`;
+    }).join('');
+  }
+  async function requestWake(){ try{ if (navigator.wakeLock && document.visibilityState==='visible') SC.wake = await navigator.wakeLock.request('screen'); }catch(e){} }
+  document.addEventListener('visibilitychange', () => { if (!$('screen').hidden && document.visibilityState==='visible'){ requestWake(); loadScreen(); } });
+  function screenActivity(){ $('screen').classList.remove('idle'); clearTimeout(SC.idleT); SC.idleT = setTimeout(() => $('screen').classList.add('idle'), 3000); }
+  $('screen').addEventListener('mousemove', screenActivity);
+  $('screen').addEventListener('touchstart', screenActivity, {passive:true});
+  $('scClose').onclick = closeScreen;
+  $('scFull').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {}); };
+  document.addEventListener('keydown', e => { if (e.key==='Escape'){ if (!$('modal').hidden) closeModal(); else if (!$('screen').hidden && !document.fullscreenElement) closeScreen(); } });
+
   // ================= Start =================
   render();
   pollVehicles();
   bbPoll(); setInterval(bbPoll, 20000); setInterval(bbTick, 2000);
   loadStops();
   setInterval(() => { if (view==='stop' && curStop) renderStopLive(); if (view==='veh') renderVehicleHead(); }, 10000);
+  renderAlertsBar(); checkAlerts();
+  setInterval(checkAlerts, 30000); setInterval(tickAlerts, 5000);
+  applyHash();
 })();
 </script>
 </body>

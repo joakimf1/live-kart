@@ -13,14 +13,31 @@ Live-kart over kollektivtrafikken i Bergen: busser, Bybanen og båter i sanntid.
 - **Bybanen:** posisjonen er anslått ut fra sanntidsavgangene, fordi Bybanen ikke sender GPS til Entur
 - **Bergen nå:** antall kjøretøy i trafikk, punktlighet, mest forsinkede linje, vær og regnvarsel neste 90 min, og strømpris (NO5)
 - **Kartvalg:** mørkt, lyst, Kartverket topo og gråtone, satellitt og OpenSeaMap-sjømerker
+- **Installerbar app (PWA):** «Legg til på Hjem-skjerm» på mobil, eller «Installer» i Chrome og Edge
+- **Varsel når bussen nærmer seg:** trykk på 🔔 ved en avgang og velg hvor mange minutter før du vil ha beskjed. Varselet virker så lenge appen er åpen, også i bakgrunnen. På iPhone kreves det at appen er lagt til på Hjem-skjerm.
+- **Skjermmodus:** stor avgangstavle for iPad eller TV, med klokke og vær, som holder skjermen våken
+
+## Delbare lenker
+
+| Lenke | Åpner |
+|---|---|
+| `#stopp/58366/byparken` | Avgangstavla for en holdeplass (tallet er NSR-id) |
+| `#stopp-byparken` | Søker opp holdeplassen etter navn |
+| `#skjerm/58366` | Skjermmodus for en holdeplass |
+| `#skjerm/58366,58367/linjer=20,21` | Skjermmodus for flere holdeplasser, med linjefilter |
+| `#linje/20` | Kartet filtrert på linje 20 (flere: `#linje/20,21`) |
+| `#bergen-na` | Bergen nå-oversikten |
+
+Adressen oppdateres automatisk mens du bruker siden, og «Del»-knappen på en holdeplass kopierer lenken.
 
 ## Kjøre lokalt
 
-Hele siden er én fil (`index.html`) uten byggesteg:
+Siden er `index.html` pluss `manifest.webmanifest`, `sw.js` og `icons/`, uten byggesteg:
 
 ```bash
 python3 -m http.server
 # åpne http://localhost:8000
+# (service worker og installasjon krever http/https, ikke file://)
 ```
 
 ## Publisere

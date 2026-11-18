@@ -66,9 +66,9 @@ await step('Følg kjøretøy – neste stopp', async () => {
       sampleDep: deps.slice(0, 4).map(c => c.serviceJourney?.id + ' (' + c.serviceJourney?.line?.publicCode + ')') };
   });
   console.log('DEBUG koblinger:', JSON.stringify(dbg));
-  const live = await page.$('#stopDeps .dep.live');
-  if (!live) { warn('Følg kjøretøy – neste stopp', false, 'ingen avgang med live posisjon akkurat nå'); return; }
-  await live.click();
+  const live = page.locator('#stopDeps .dep.live').first();
+  if (!(await live.count())) { warn('Følg kjøretøy – neste stopp', false, 'ingen avgang med live posisjon akkurat nå'); return; }
+  await live.click({ timeout: 10000 });   // locator slår opp elementet på nytt hvis lista tegnes om
   const n = await page.waitForFunction(() => {
     const t = document.getElementById('vehCalls')?.textContent || '';
     if (/Fant ikke|sender ikke/.test(t)) return -1;

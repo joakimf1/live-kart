@@ -23,7 +23,11 @@ const jsErrors = [];
 page.on('pageerror', e => jsErrors.push(e.message));
 
 async function step(name, fn) {
-  try { await fn(); } catch (e) { check(name, false, String(e.message || e).split('\n')[0].slice(0, 160)); }
+  try { await fn(); } catch (e) {
+    const st = await page.evaluate(() => ({ hash: location.hash, view: document.querySelector('.view.on')?.id,
+      stop: (document.getElementById('stopBox')?.textContent || '').replace(/\s+/g, ' ').slice(0, 120) })).catch(() => ({}));
+    check(name, false, String(e.message || e).split('\n')[0].slice(0, 120) + ' · tilstand: ' + JSON.stringify(st));
+  }
 }
 
 // 1) Kart + kjøretøy

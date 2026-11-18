@@ -17,6 +17,7 @@ Live-kart over kollektivtrafikken i Bergen: busser, Bybanen og båter i sanntid.
 - **Varsel når bussen nærmer seg:** trykk på 🔔 ved en avgang og velg hvor mange minutter før du vil ha beskjed. Varselet virker så lenge appen er åpen, også i bakgrunnen. På iPhone kreves det at appen er lagt til på Hjem-skjerm.
 - **Nedbør-tidslinje (☔ Nedbør):** dra eller spill av fra 2 timer bakover (radar) til 12 timer frem (Yr sitt 1 km-varsel) og se regnet komme inn over byen. Piltastene blar frem og tilbake.
 - **☀ Min morgen:** velg en holdeplass, linjer, tidsrom og gangtid. Da ligger et kort øverst i kartet med neste avganger, «Gå om 4 min», regn ved holdeplassen og avvik.
+- **Hvor fullt er det?:** bussene får et 🧍-merke når de bare har ståplass, med fargemodus «Hvor fullt», filter «vis bare fulle busser» og visning i avgangstavla, Min morgen og Bergen nå. Data fra Skyss via Entur. Bybanen og båtene melder ikke fyllingsgrad.
 - **Avvik:** trafikkmeldinger fra Entur (omkjøring, innstillinger) vises på avgangene
 - **Båt og ferje:** snarveier til Strandkaiterminalen, Halhjem og Sandvikvåg, og ferger og hurtigbåter i et større område på kartet
 - **Push-varsler når appen er lukket** (valgfritt): bussvarsler og Min morgen-varsler om innstilte avganger og forsinkelser over 5 min. Krever en gratis Cloudflare Worker, se [worker/README.md](worker/README.md).

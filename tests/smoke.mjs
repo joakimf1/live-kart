@@ -140,6 +140,12 @@ await step('Fyllingsgrad (occupancy)', async () => {
   console.log('OCCUPANCY:', JSON.stringify(r));
   const any = JSON.stringify(r).match(/(manySeats|fewSeats|standing|full|empty|seatsAvailable|MANY|FEW|STANDING|FULL|EMPTY)/i);
   warn('Fyllingsgrad (occupancy)', !!any, any ? 'Skyss rapporterer fyllingsgrad' : 'ingen fyllingsdata fra Skyss');
+  const app = await page.evaluate(() => { const vs = [...window.__blk.vehicles.values()].map(r => r.data);
+    return { withOcc: vs.filter(d => d.occ).length, crowded: vs.filter(d => d.occ === 'standing' || d.occ === 'full').length, total: vs.length }; });
+  check('Fyllingsgrad i appen', app.withOcc > 0, `${app.withOcc} av ${app.total} kjøretøy har fyllingsgrad, ${app.crowded} med ståplass/fullt`);
+  await page.goto(BASE + '#kart'); await page.click('.tab[data-view="lines"]'); await page.click('#colorSeg [data-c="occ"]');
+  await wait(1500); await page.screenshot({ path: SHOTS + '3d-fyllingsgrad.png' });
+  await page.click('#colorSeg [data-c="mode"]');
 });
 
 // 4) Bergen nå: vær + strømpris

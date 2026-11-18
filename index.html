@@ -130,6 +130,11 @@
   .veh .b{position:absolute;inset:3px;border-radius:50%;background:var(--c);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:700 10px Inter,sans-serif;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);letter-spacing:-.03em;text-shadow:0 0 2px rgba(0,0,0,.45)}
   .veh .a{position:absolute;inset:0;transition:transform .6s}
   .veh .a::before{content:"";position:absolute;left:50%;top:-4px;transform:translateX(-50%);border:5px solid transparent;border-bottom:7px solid var(--c);border-top:0}
+  .veh .o{position:absolute;top:-3px;right:-4px;min-width:13px;height:13px;border-radius:7px;background:#f59e0b;border:1.5px solid #0b0f12;font:700 8px/10px Inter,sans-serif;color:#0b0f12;text-align:center;padding:0 1px}
+  .veh .o.full{background:#ef4444;color:#fff}
+  .occ-t{color:#f59e0b}.occ-full{color:#f87171}.occ-ok{color:#4ade80}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:10px;cursor:pointer;user-select:none}
+  .toggle input{accent-color:#f59e0b;width:15px;height:15px}
   .veh.boat .b{border-radius:6px}
   .veh.tram .b{border-radius:5px}
   .veh.est .b{border-style:dashed}
@@ -276,11 +281,16 @@
       </div>
       <div class="section">
         <h2>Farge</h2>
-        <div class="seg" id="colorSeg"><button data-c="mode" class="on">Transporttype</button><button data-c="delay">Forsinkelse</button></div>
+        <div class="seg" id="colorSeg"><button data-c="mode" class="on">Type</button><button data-c="delay">Forsinkelse</button><button data-c="occ">Hvor fullt</button></div>
         <div class="legend" id="delayLegend" hidden>
           <span><i style="background:var(--d0)"></i>I rute</span><span><i style="background:var(--d1)"></i>1–3 min</span>
           <span><i style="background:var(--d2)"></i>3–6 min</span><span><i style="background:var(--d3)"></i>6+ min</span><span><i style="background:var(--dn)"></i>Ukjent</span>
         </div>
+        <div class="legend" id="occLegend" hidden>
+          <span><i style="background:var(--d0)"></i>Sitteplasser</span><span><i style="background:var(--d2)"></i>Bare ståplass</span>
+          <span><i style="background:var(--d3)"></i>Full</span><span><i style="background:var(--dn)"></i>Ukjent</span>
+        </div>
+        <label class="toggle"><input type="checkbox" id="onlyFull"> 🧍 Vis bare busser med ståplass/fulle <span class="n" id="fullCount" style="color:var(--muted);margin-left:auto"></span></label>
       </div>
       <div class="section">
         <h2>Linjer <button class="link" id="clearSel" hidden>Vis alle</button></h2>
@@ -359,6 +369,16 @@
     if (m==='ferry'||m==='water'||m==='boat') return 'boat'; if (m==='rail') return 'train'; return 'other'; };
 
   // ================= Helpers =================
+  // Fyllingsgrad fra Entur: seats | standing | full | null (ukjent)
+  const normOcc = o => { o = String(o||'').toLowerCase();
+    if (!o || o==='nodata' || o==='unknown' || o==='null') return null;
+    if (/full|notaccepting/.test(o)) return 'full';
+    if (/standing/.test(o)) return 'standing';
+    if (/seat|empty/.test(o)) return 'seats';
+    return null; };
+  const occColor = o => o==='seats' ? 'var(--d0)' : o==='standing' ? 'var(--d2)' : o==='full' ? 'var(--d3)' : 'var(--dn)';
+  const occText = o => o==='standing' ? '<span class="occ-t">🧍 Bare ståplass</span>' : o==='full' ? '<span class="occ-full">⛔ Full</span>' : o==='seats' ? '<span class="occ-ok">Sitteplasser ledig</span>' : '';
+  const isCrowded = o => o==='standing' || o==='full';
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const store = (k,v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
@@ -389,6 +409,7 @@
   const hiddenModes = new Set(load('blk.hiddenModes', []));
   const selected = new Set(load('blk.selected', []));
   let colorMode = load('blk.color', 'mode');
+  let onlyFull = load('blk.onlyFull', false);
   let query = '';
   const vehicles = new Map();          // id -> record
   const bySJ = new Map();              // serviceJourney id -> vehicle id
@@ -427,17 +448,18 @@
   const lineKey = d => `${d.mode}|${d.code}`;
   const visible = d => d.id === followId || (
     !hiddenModes.has(d.mode) &&
+    (!onlyFull || isCrowded(d.occ)) &&
     (selected.size===0 || selected.has(lineKey(d))) &&
     (!query || d.code.toLowerCase().includes(query) || (d.dest||'').toLowerCase().includes(query) || (d.name||'').toLowerCase().includes(query)));
-  const colorFor = d => colorMode==='delay' ? delayColor(d.delay) : MODES[d.mode].color;
+  const colorFor = d => colorMode==='delay' ? delayColor(d.delay) : colorMode==='occ' ? occColor(d.occ) : MODES[d.mode].color;
 
   function iconFor(d){
     return L.divIcon({ className:'', iconSize:[28,28], iconAnchor:[14,14],
       html:`<div class="veh ${d.mode}${d.est?' est':''}${d.id===followId?' sel':''}" style="--c:${colorFor(d)}">
         ${d.bearing!=null?`<div class="a" style="transform:rotate(${Math.round(d.bearing)}deg)"></div>`:''}
-        <div class="b">${esc(d.code).slice(0,4)}</div></div>` });
+        <div class="b">${esc(d.code).slice(0,4)}</div>${isCrowded(d.occ) && colorMode!=='occ' ? `<div class="o${d.occ==='full'?' full':''}" title="${d.occ==='full'?'Full':'Bare ståplass'}">${d.occ==='full'?'!':'🧍'}</div>` : ''}</div>` });
   }
-  const sigOf = d => [d.mode,d.code,d.bearing==null?'':Math.round(d.bearing/10),colorMode,colorMode==='delay'?delayColor(d.delay):'',d.id===followId].join('|');
+  const sigOf = d => [d.mode,d.code,d.bearing==null?'':Math.round(d.bearing/10),colorMode,colorMode==='delay'?delayColor(d.delay):'',d.occ,d.id===followId].join('|');
 
   function upsert(d, now, dur){
     let r = vehicles.get(d.id);
@@ -461,7 +483,7 @@
   function refreshIcons(){ for (const r of vehicles.values()){ r.sig=sigOf(r.data); r.marker.setIcon(iconFor(r.data)); } }
 
   // --- Entur sanntidsposisjoner
-  const VF_FULL = `vehicleId mode lastUpdated bearing delay destinationName
+  const VF_FULL = `vehicleId mode lastUpdated bearing delay destinationName occupancyStatus
     line { lineRef publicCode lineName } location { latitude longitude } codespace { codespaceId } serviceJourney { id }`;
   const VF_MID = `vehicleId mode lastUpdated bearing delay destinationName
     line { lineRef publicCode lineName } location { latitude longitude } codespace { codespaceId }`;
@@ -494,7 +516,7 @@
           delay: typeof v.delay==='number' ? v.delay : null,
           bearing: typeof v.bearing==='number' ? v.bearing : null,
           op: v.codespace?.codespaceId && v.codespace.codespaceId!=='SKY' ? v.codespace.codespaceId : '',
-          sj: v.serviceJourney?.id || null,
+          sj: v.serviceJourney?.id || null, occ: normOcc(v.occupancyStatus),
           lat: v.location.latitude, lon: v.location.longitude,
         };
         seen.add(d.id); upsert(d, now, POLL_MS*0.9);
@@ -684,6 +706,10 @@
     $('selHint').textContent = selected.size ? `Viser ${selected.size} valgt${selected.size>1?'e':''} linje${selected.size>1?'r':''}.` : 'Trykk på linjer for å vise bare dem. Trykk på et kjøretøy i kartet for å følge det.';
     $('colorSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c===colorMode));
     $('delayLegend').hidden = colorMode!=='delay';
+    $('occLegend').hidden = colorMode!=='occ';
+    $('onlyFull').checked = onlyFull;
+    const crowded = [...vehicles.values()].filter(r => isCrowded(r.data.occ)).length;
+    $('fullCount').textContent = crowded ? crowded : '';
   }
 
   $('modes').addEventListener('click', e => { const b=e.target.closest('[data-mode]'); if (!b) return; const m=b.dataset.mode;
@@ -693,6 +719,8 @@
     if (selected.has(k)){ const pts=[...vehicles.values()].filter(r => lineKey(r.data)===k).map(r => r.to); if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(.3), {maxZoom:14}); } });
   $('clearSel').addEventListener('click', () => { selected.clear(); store('blk.selected',[]); render(); updateLineHash(); });
   $('q').addEventListener('input', e => { query=e.target.value.trim().toLowerCase(); render(); });
+  $('onlyFull').addEventListener('change', e => { onlyFull = e.target.checked; store('blk.onlyFull', onlyFull); render();
+    if (onlyFull && !(([...vehicles.values()].some(r => isCrowded(r.data.occ))))) toast('Ingen busser melder ståplass eller fullt akkurat nå.'); });
   $('colorSeg').addEventListener('click', e => { const b=e.target.closest('[data-c]'); if (!b) return; colorMode=b.dataset.c; store('blk.color',colorMode); refreshIcons(); render(); });
   $('toggle').addEventListener('click', () => $('side').classList.toggle('open'));
 
@@ -739,7 +767,7 @@
     const d = r.data;
     head.innerHTML = `
       <div class="ttl"><span class="badge" style="--c:${MODES[d.mode].color}">${esc(d.code)}</span>${esc(d.dest || d.name || MODES[d.mode].label)}</div>
-      <div class="kv"><span>${delayHtml(d.delay) || 'Forsinkelse ukjent'}</span><span>${MODES[d.mode].label}${d.est?' (anslått posisjon)':''}</span>${d.op?`<span>${esc(d.op)}</span>`:''}<span>Oppdatert ${Math.max(0,Math.round((Date.now()-d.ts)/1000))} s siden</span></div>`;
+      <div class="kv"><span>${delayHtml(d.delay) || 'Forsinkelse ukjent'}</span>${occText(d.occ) ? `<span>${occText(d.occ)}</span>` : ''}<span>${MODES[d.mode].label}${d.est?' (anslått posisjon)':''}</span>${d.op?`<span>${esc(d.op)}</span>`:''}<span>Oppdatert ${Math.max(0,Math.round((Date.now()-d.ts)/1000))} s siden</span></div>`;
   }
   function renderVehicle(){
     if (vehRoute){ vehRoute.remove(); vehRoute=null; }
@@ -901,7 +929,7 @@
       const t = Date.parse(c.expectedDepartureTime), aimed = Date.parse(c.aimedDepartureTime), dl = Math.round((t-aimed)/60000);
       const vid = c.serviceJourney && bySJ.get(c.serviceJourney.id), v = vid && vehicles.get(vid);
       let loc = '';
-      if (v){ const p = v.marker.getLatLng(); loc = `<span class="loc">● ${v.data.est?'ca. ':''}${fmtDist(dist([p.lat,p.lng],[curStop.lat,curStop.lon]))} unna</span> · `; }
+      if (v){ const p = v.marker.getLatLng(); loc = `<span class="loc">● ${v.data.est?'ca. ':''}${fmtDist(dist([p.lat,p.lng],[curStop.lat,curStop.lon]))} unna</span> · ${isCrowded(v.data.occ) ? occText(v.data.occ) + ' · ' : ''}`; }
       const meta = loc + (c.cancellation ? '<span class="cx">Innstilt</span>' : dl>=2 ? `<span class="late-t">${dl} min forsinket</span>` : c.realtime ? '<span class="rt">Sanntid</span>' : 'Rutetid')
         + (c.quay?.publicCode ? ` · Plf. ${esc(c.quay.publicCode)}` : '');
       const hasAl = alerts.some(a => a.sj===c.serviceJourney?.id && a.stopId===curStop.id);
@@ -990,6 +1018,7 @@
       <div class="tile clickable" id="nowWorst"></div>
       <div class="tile w clickable" id="nowWeather"><h3>Været i sentrum <span style="float:right;text-transform:none;letter-spacing:0;color:var(--accent);font-weight:500">Vis nedbørkart →</span></h3>${wHtml}</div>
       <div class="tile w"><h3>Strøm · Vest-Norge (NO5)</h3>${pHtml}</div>
+      <div class="tile w clickable" id="nowFull"></div>
       <div class="tile w" id="nowBoats"></div>`;
     $('nowWeather').onclick = () => openRain();
     renderNowStats();
@@ -1013,6 +1042,14 @@
     wEl.innerHTML = `<h3>Mest forsinket</h3>${worst ? `<div class="big">${esc(worst.code)}</div><p>Linje ${esc(worst.code)}: snitt <b>${fmtNum(worst.v/60)} min</b> (${worst.n} busser). Trykk for å se.</p>` : '<p>Ingen linje skiller seg ut.</p>'}`;
     wEl.onclick = worst ? () => { selected.clear(); selected.add('bus|'+worst.code); store('blk.selected',[...selected]); setView('lines'); render();
       const pts=[...vehicles.values()].filter(r => r.data.mode==='bus' && r.data.code===worst.code).map(r => r.to); if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(.3), {maxZoom:14}); } : null;
+    const withOcc = all.filter(d => d.mode==='bus' && d.occ), crowded = withOcc.filter(d => isCrowded(d.occ));
+    const byL = new Map(); for (const d of crowded) byL.set(d.code, (byL.get(d.code)||0)+1);
+    const topL = [...byL].sort((a,b) => b[1]-a[1]).slice(0,5);
+    $('nowFull').innerHTML = `<h3>Hvor fullt er det? <span style="float:right;text-transform:none;letter-spacing:0;color:var(--accent);font-weight:500">Vis på kartet →</span></h3>
+      ${withOcc.length ? `<div class="big">${crowded.length}<small> busser med bare ståplass eller fullt</small></div>
+      <p>${crowded.length ? 'Flest på linje ' + topL.map(([c,n]) => `<b>${esc(c)}</b> (${n})`).join(', ') + '.' : 'Det er sitteplasser på alle bussene som melder fyllingsgrad.'} ${withOcc.length} av ${all.filter(d => d.mode==='bus').length} busser melder fyllingsgrad. Bybanen og båtene melder ikke.</p>`
+      : '<p>Ingen busser melder fyllingsgrad akkurat nå.</p>'}`;
+    $('nowFull').onclick = () => { colorMode = 'occ'; store('blk.color', colorMode); refreshIcons(); setView('lines'); render(); };
     const boats = all.filter(d => d.mode==='boat');
     $('nowBoats').innerHTML = `<h3>På sjøen</h3><div class="big">${boats.length}<small> båter i rute</small></div>
       <p>${boats.length ? [...new Set(boats.map(b => b.dest).filter(Boolean))].slice(0,5).map(esc).join(' · ') : 'Ingen båtruter rapporterer posisjon akkurat nå.'}</p>
@@ -1212,7 +1249,7 @@
       const dl = Math.round((t - Date.parse(c.aimedDepartureTime))/60000);
       return `<div class="mm-row"><span class="badge" style="--c:${MODES[m].color}">${esc(l.publicCode||'?')}</span>
         <span class="dd">${esc(c.destinationDisplay?.frontText||'')}</span>
-        <span class="tt ${c.cancellation?'cx':''}">${c.cancellation?'Innstilt':relTime(t)}${!c.cancellation && dl>=2?` <span class="late-t">+${dl}</span>`:''}</span></div>`;
+        <span class="tt ${c.cancellation?'cx':''}">${(o => isCrowded(o) ? (o==='full'?'⛔ ':'🧍 ') : '')(vehicles.get(bySJ.get(c.serviceJourney?.id))?.data.occ)}${c.cancellation?'Innstilt':relTime(t)}${!c.cancellation && dl>=2?` <span class="late-t">+${dl}</span>`:''}</span></div>`;
     }).join('');
     let rain = '';
     if (MM.rain?.length){
@@ -1523,7 +1560,9 @@
         const l = c.serviceJourney?.line || {}, m = normMode(l.transportMode);
         const t = Date.parse(c.expectedDepartureTime), dl = Math.round((t - Date.parse(c.aimedDepartureTime))/60000);
         const rt = relTime(t), soon = (t - now) < 90000;
-        const sub = [c.quay?.publicCode ? 'Plattform ' + esc(c.quay.publicCode) : '', c.cancellation ? 'Innstilt' : dl >= 2 ? `${dl} min forsinket (${clock(Date.parse(c.aimedDepartureTime))})` : ''].filter(Boolean).join(' · ');
+        const occ = vehicles.get(bySJ.get(c.serviceJourney?.id))?.data.occ;
+        const sub = [c.quay?.publicCode ? 'Plattform ' + esc(c.quay.publicCode) : '', c.cancellation ? 'Innstilt' : dl >= 2 ? `${dl} min forsinket (${clock(Date.parse(c.aimedDepartureTime))})` : '',
+          occ==='full' ? '⛔ Full' : occ==='standing' ? '🧍 Bare ståplass' : ''].filter(Boolean).join(' · ');
         return `<div class="sc-row"><span class="badge" style="--c:${MODES[m].color}">${esc(l.publicCode||'?')}</span>
           <span class="sc-dest">${esc(c.destinationDisplay?.frontText||'')}${sub ? `<small>${sub}</small>` : ''}</span>
           <span class="sc-time${c.cancellation ? ' cx' : soon ? ' soon' : ''}">${rt}</span></div>`;

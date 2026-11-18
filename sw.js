@@ -2,7 +2,7 @@
 // Appskallet caches slik at appen åpner raskt og fungerer som installert app.
 // Sanntidsdata (Entur, MET, strømpris) og kartfliser går alltid rett til nettet.
 importScripts('config.js');
-const CACHE = 'bergenlive-v4';
+const CACHE = 'bergenlive-v5';
 const SHELL = [
   './',
   './index.html',

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bergen live – kollektivtrafikk</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1418; --panel:#161d22; --panel2:#1d262d; --line:#2a353d;
+    --text:#e8eef2; --muted:#8fa0ab; --accent:#60a5fa;
+    --bus:#e5484d; --tram:#f5a524; --boat:#0ea5c6; --train:#8b5cf6; --other:#94a3b8;
+    --d0:#22c55e; --d1:#a3e635; --d2:#f59e0b; --d3:#ef4444; --dn:#64748b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+  button{font:inherit;color:inherit}
+  #app{display:flex;height:100vh}
+  #side{width:340px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:500;min-height:0}
+  #map{flex:1;height:100%;background:#0b0f12}
+  header{padding:14px 16px 6px}
+  h1{font-size:18px;margin:0 0 2px;font-weight:700;letter-spacing:-.01em}
+  .sub{font-size:12px;color:var(--muted)}
+  .status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:4px 16px 10px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;flex:none;animation:pulse 2s infinite}
+  .dot.err{background:#ef4444;animation:none}
+  .dot.wait{background:#f59e0b}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+
+  .tabs{display:flex;gap:4px;padding:0 12px 10px}
+  .tab{flex:1;background:none;border:1px solid transparent;border-radius:9px;padding:7px 4px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+  .tab.on{background:var(--panel2);border-color:var(--line);color:var(--text)}
+  .view{display:none;flex:1;min-height:0;flex-direction:column;overflow:auto;border-top:1px solid var(--line)}
+  .view.on{display:flex}
+
+  .section{padding:12px 16px;border-bottom:1px solid var(--line)}
+  .section:last-child{border-bottom:none}
+  .section h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .mode{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:13px;user-select:none}
+  .mode .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
+  .mode .n{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
+  .mode.off{opacity:.4}
+  .mode.off .sw{background:transparent;border:1px solid var(--c)}
+  .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg button{flex:1;background:none;border:none;border-radius:7px;padding:6px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+  .seg button.on{background:var(--line);color:var(--text)}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+  input[type=search]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 12px;font:inherit;font-size:13px;outline:none}
+  input[type=search]:focus{border-color:#3b82f6}
+  .lines{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{min-width:38px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:600;cursor:pointer;text-align:center;font-variant-numeric:tabular-nums;position:relative}
+  .chip::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--c)}
+  .chip.sel{background:var(--c);border-color:var(--c);color:#0b0f12}
+  .chip.sel::before{display:none}
+  .chip small{font-weight:400;opacity:.7;margin-left:3px}
+  .link{background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;text-transform:none;letter-spacing:0;padding:0;font-weight:500}
+  .hint{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+  .err-t{color:#fca5a5}
+
+  /* stop + vehicle panels */
+  .results{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+  .res{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:13px;background:none;border:none;text-align:left;width:100%}
+  .res:hover{background:var(--panel2)}
+  .res small{color:var(--muted);margin-left:auto;font-size:11px}
+  .fav{color:#fbbf24}
+  .ttl{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700;line-height:1.25}
+  .iconbtn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap}
+  .iconbtn.on{background:var(--accent);border-color:var(--accent);color:#0b0f12}
+  .deps{display:flex;flex-direction:column}
+  .dep{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--line);background:none;border-left:none;border-right:none;border-top:none;text-align:left;width:100%;cursor:default}
+  .dep.live{cursor:pointer}
+  .dep.live:hover{background:var(--panel2)}
+  .badge{display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:24px;padding:0 6px;border-radius:6px;background:var(--c);color:#fff;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
+  .dep .d{font-size:13px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
+  .dep .m{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+  .dep .m .loc{color:var(--accent)}
+  .dep .t{text-align:right;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+  .dep .t small{display:block;font-size:11px;font-weight:500;color:var(--muted)}
+  .rt{color:#4ade80}.late-t{color:#fbbf24}.early-t{color:#60a5fa}.cx{text-decoration:line-through;color:#f87171}
+  .calls{list-style:none;margin:0;padding:6px 16px 12px}
+  .calls li{display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:center;font-size:13px;padding:6px 0;position:relative}
+  .calls li::before{content:"";position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--line)}
+  .calls li:first-child::before{top:50%}.calls li:last-child::before{bottom:50%}
+  .calls .pt{width:10px;height:10px;border-radius:50%;border:2px solid var(--c);background:var(--panel);position:relative;z-index:1;margin-left:2px}
+  .calls li.past{color:var(--muted)}
+  .calls li.past .pt{background:var(--c)}
+  .calls li.next{font-weight:700}
+  .calls li.next .pt{box-shadow:0 0 0 4px rgba(96,165,250,.25)}
+  .calls .tm{font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
+  .calls li.next .tm{color:var(--text)}
+  .kv{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+  .kv b{color:var(--text);font-weight:600}
+
+  /* Bergen nå */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+  .tile{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
+  .tile.w{grid-column:1/-1}
+  .tile h3{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+  .big{font-size:26px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+  .big small{font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0}
+  .tile p{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
+  .tile p b{color:var(--text);font-weight:600}
+  .bars{display:flex;align-items:flex-end;gap:2px;height:44px;margin-top:10px}
+  .bars span{flex:1;background:#3b82f6;border-radius:2px 2px 0 0;min-height:2px;opacity:.85}
+  .bars span.cur{background:#fbbf24;opacity:1}
+  .bars span.past{opacity:.3}
+  .axis{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px}
+  .clickable{cursor:pointer}
+  .clickable:hover{border-color:#3b4a55}
+
+  footer{padding:9px 16px;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
+  footer a{color:var(--muted)}
+  #toggle{display:none}
+
+  /* markers */
+  .veh{position:relative;width:28px;height:28px;transition:transform .2s}
+  .veh .b{position:absolute;inset:3px;border-radius:50%;background:var(--c);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:700 10px Inter,sans-serif;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);letter-spacing:-.03em;text-shadow:0 0 2px rgba(0,0,0,.45)}
+  .veh .a{position:absolute;inset:0;transition:transform .6s}
+  .veh .a::before{content:"";position:absolute;left:50%;top:-4px;transform:translateX(-50%);border:5px solid transparent;border-bottom:7px solid var(--c);border-top:0}
+  .veh.boat .b{border-radius:6px}
+  .veh.tram .b{border-radius:5px}
+  .veh.est .b{border-style:dashed}
+  .veh.sel{transform:scale(1.45)}
+  .veh.sel .b{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.45),0 1px 6px rgba(0,0,0,.6)}
+  .leaflet-control-layers{background:var(--panel)!important;color:var(--text);border:1px solid var(--line)!important;border-radius:10px!important}
+  .leaflet-control-layers-expanded{padding:10px 12px;font-size:13px}
+  .leaflet-control-layers-separator{border-top-color:var(--line)!important}
+  .leaflet-control-layers-toggle{filter:invert(.85)}
+  .leaflet-tooltip.stoptip{background:var(--panel);color:var(--text);border:1px solid var(--line);font:600 12px Inter,sans-serif;box-shadow:none}
+  .leaflet-tooltip.stoptip::before{display:none}
+  .dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)}
+
+  @media (max-width:760px){
+    #side{position:absolute;left:0;right:0;bottom:0;width:auto;height:62%;border-right:none;border-top:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(calc(100% - 132px));transition:transform .25s}
+    #side.open{transform:none}
+    #toggle{display:block;position:absolute;top:7px;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px;background:var(--line);border:none;cursor:pointer;padding:0}
+    header{padding-top:18px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <button id="toggle" aria-label="Vis/skjul panel"></button>
+    <header>
+      <h1>Bergen live</h1>
+      <div class="sub">Busser, Bybanen og båter i sanntid</div>
+    </header>
+    <div class="status"><span class="dot wait" id="dot"></span><span id="statusText">Kobler til Entur…</span></div>
+    <nav class="tabs">
+      <button class="tab on" data-view="lines">Kjøretøy</button>
+      <button class="tab" data-view="stop">Holdeplass</button>
+      <button class="tab" data-view="now">Bergen nå</button>
+    </nav>
+
+    <!-- Kjøretøy -->
+    <section class="view on" id="v-lines">
+      <div class="section">
+        <h2>Transporttype</h2>
+        <div class="modes" id="modes"></div>
+      </div>
+      <div class="section">
+        <h2>Farge</h2>
+        <div class="seg" id="colorSeg"><button data-c="mode" class="on">Transporttype</button><button data-c="delay">Forsinkelse</button></div>
+        <div class="legend" id="delayLegend" hidden>
+          <span><i style="background:var(--d0)"></i>I rute</span><span><i style="background:var(--d1)"></i>1–3 min</span>
+          <span><i style="background:var(--d2)"></i>3–6 min</span><span><i style="background:var(--d3)"></i>6+ min</span><span><i style="background:var(--dn)"></i>Ukjent</span>
+        </div>
+      </div>
+      <div class="section">
+        <h2>Linjer <button class="link" id="clearSel" hidden>Vis alle</button></h2>
+        <input type="search" id="q" placeholder="Søk linje eller destinasjon …">
+        <p class="hint" id="selHint">Trykk på linjer for å vise bare dem. Trykk på et kjøretøy i kartet for å følge det.</p>
+      </div>
+      <div class="section" style="border-bottom:none"><div class="lines" id="lines"></div></div>
+    </section>
+
+    <!-- Holdeplass -->
+    <section class="view" id="v-stop">
+      <div class="section" id="stopSearchBox">
+        <input type="search" id="stopQ" placeholder="Søk holdeplass, f.eks. Byparken …" autocomplete="off">
+        <div class="results" id="stopResults"></div>
+        <p class="hint" id="stopHint">…eller zoom inn i kartet og trykk på en holdeplass.</p>
+      </div>
+      <div id="stopBox"></div>
+    </section>
+
+    <!-- Kjøretøy-detalj -->
+    <section class="view" id="v-veh"><div id="vehBox"></div></section>
+
+    <!-- Bergen nå -->
+    <section class="view" id="v-now"><div class="tiles" id="tiles"></div></section>
+
+    <footer>Data: <a href="https://developer.entur.org" target="_blank" rel="noopener">Entur</a>, <a href="https://api.met.no" target="_blank" rel="noopener">MET</a>, <a href="https://www.hvakosterstrommen.no" target="_blank" rel="noopener">hvakosterstrommen.no</a> · Kart © OpenStreetMap, Kartverket, Esri</footer>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(() => {
+  // ================= Config =================
+  const CLIENT = 'privat-bergenlivekart';
+  const URL_VEH = 'https://api.entur.io/realtime/v2/vehicles/graphql';
+  const URL_JP  = 'https://api.entur.io/journey-planner/v3/graphql';
+  const URL_GEO = 'https://api.entur.io/geocoder/v1/autocomplete';
+  const CENTER = [60.3913, 5.3221];
+  const BBOX = {minLat:59.95, minLon:4.6, maxLat:60.75, maxLon:5.9};
+  const POLL_MS = 5000, STALE_MS = 5*60*1000, STOP_ZOOM = 15;
+  const HDR = {'Content-Type':'application/json','ET-Client-Name':CLIENT};
+
+  const MODES = {
+    bus:{label:'Buss',color:'var(--bus)'}, tram:{label:'Bybane',color:'var(--tram)'},
+    boat:{label:'Båt',color:'var(--boat)'}, train:{label:'Tog',color:'var(--train)'}, other:{label:'Annet',color:'var(--other)'},
+  };
+  const normMode = m => { m=(m||'').toLowerCase();
+    if (m==='bus'||m==='coach') return 'bus'; if (m==='tram'||m==='metro') return 'tram';
+    if (m==='ferry'||m==='water'||m==='boat') return 'boat'; if (m==='rail') return 'train'; return 'other'; };
+
+  // ================= Helpers =================
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const store = (k,v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+  const load = (k,d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v ?? d; }catch(e){ return d; } };
+  const todayOslo = () => new Date().toLocaleDateString('sv-SE', {timeZone:'Europe/Oslo'});
+  const clock = t => new Date(t).toLocaleTimeString('no-NO', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Oslo'});
+  const relTime = t => { const m = Math.round((t-Date.now())/60000); if (m<=0) return 'nå'; if (m<15) return m+' min'; return clock(t); };
+  const fmtNum = (n,d=1) => n.toLocaleString('no-NO', {minimumFractionDigits:d, maximumFractionDigits:d});
+  const dist = (a,b) => { const R=6371000, r=Math.PI/180, dLat=(b[0]-a[0])*r, dLon=(b[1]-a[1])*r;
+    const x = Math.sin(dLat/2)**2 + Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLon/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+  const fmtDist = m => m < 1000 ? Math.round(m/10)*10+' m' : fmtNum(m/1000)+' km';
+  const bearingOf = (a,b) => { const y=(b[1]-a[1])*Math.cos(a[0]*Math.PI/180), x=b[0]-a[0]; return (Math.atan2(y,x)*180/Math.PI+360)%360; };
+  function delayHtml(s){ if (s==null) return ''; const m=Math.round(s/60);
+    if (m>=1) return `<span class="late-t">${m} min forsinket</span>`; if (m<=-1) return `<span class="early-t">${-m} min før</span>`; return `<span class="rt">I rute</span>`; }
+  const delayColor = s => s==null ? 'var(--dn)' : s<60 ? 'var(--d0)' : s<180 ? 'var(--d1)' : s<360 ? 'var(--d2)' : 'var(--d3)';
+  const debounce = (f,ms) => { let t; return (...a) => { clearTimeout(t); t=setTimeout(()=>f(...a), ms); }; };
+
+  async function gql(url, query){
+    const r = await fetch(url, {method:'POST', headers:HDR, body:JSON.stringify({query})});
+    const j = await r.json().catch(()=>({}));
+    if (j.errors && (!j.data || Object.values(j.data).every(v => v==null))) throw new Error(j.errors[0]?.message || 'GraphQL-feil');
+    if (!r.ok && !j.data) throw new Error('HTTP '+r.status);
+    return j.data;
+  }
+  async function gqlTry(url, queries){ let err; for (const q of queries){ try{ return await gql(url,q); }catch(e){ err=e; } } throw err; }
+
+  // ================= State =================
+  const hiddenModes = new Set(load('blk.hiddenModes', []));
+  const selected = new Set(load('blk.selected', []));
+  let colorMode = load('blk.color', 'mode');
+  let query = '';
+  const vehicles = new Map();          // id -> record
+  const bySJ = new Map();              // serviceJourney id -> vehicle id
+  let lastOk = 0, failCount = 0;
+  let view = 'lines', prevView = 'lines';
+  let followId = null, following = false;
+  let curStop = null;                  // {id,name,lat,lon}
+  let vehRoute = null;                 // polyline
+
+  // ================= Map =================
+  const map = L.map('map', {zoomControl:false}).setView(CENTER, 12);
+  L.control.zoom({position:'topright'}).addTo(map);
+  const OSM='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', KV='© <a href="https://www.kartverket.no">Kartverket</a>';
+  const BASES = {
+    'Mørkt': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, className:'dark-tiles', attribution:OSM}),
+    'Lyst': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:OSM}),
+    'Topo (Kartverket)': L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {maxZoom:18, attribution:KV}),
+    'Gråtone (Kartverket)': L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topograatone/default/webmercator/{z}/{y}/{x}.png', {maxZoom:18, attribution:KV}),
+    'Satellitt': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'© Esri, Maxar, Earthstar Geographics'}),
+  };
+  const OVERLAYS = { 'Sjømerker (OpenSeaMap)': L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {maxZoom:18, attribution:'© OpenSeaMap'}) };
+  (BASES[load('blk.base','Mørkt')] || BASES['Mørkt']).addTo(map);
+  for (const n of load('blk.overlays', [])) OVERLAYS[n]?.addTo(map);
+  L.control.layers(BASES, OVERLAYS, {position:'topright'}).addTo(map);
+  map.on('baselayerchange', e => store('blk.base', e.name));
+  map.on('overlayadd overlayremove', () => store('blk.overlays', Object.keys(OVERLAYS).filter(n => map.hasLayer(OVERLAYS[n]))));
+
+  map.createPane('stops'); map.getPane('stops').style.zIndex = 450;
+  map.createPane('route'); map.getPane('route').style.zIndex = 440;
+  const stopRenderer = L.canvas({pane:'stops'});
+  const stopsLayer = L.layerGroup().addTo(map);
+  let stopMarker = null;
+
+  // ================= Vehicles =================
+  const lineKey = d => `${d.mode}|${d.code}`;
+  const visible = d => d.id === followId || (
+    !hiddenModes.has(d.mode) &&
+    (selected.size===0 || selected.has(lineKey(d))) &&
+    (!query || d.code.toLowerCase().includes(query) || (d.dest||'').toLowerCase().includes(query) || (d.name||'').toLowerCase().includes(query)));
+  const colorFor = d => colorMode==='delay' ? delayColor(d.delay) : MODES[d.mode].color;
+
+  function iconFor(d){
+    return L.divIcon({ className:'', iconSize:[28,28], iconAnchor:[14,14],
+      html:`<div class="veh ${d.mode}${d.est?' est':''}${d.id===followId?' sel':''}" style="--c:${colorFor(d)}">
+        ${d.bearing!=null?`<div class="a" style="transform:rotate(${Math.round(d.bearing)}deg)"></div>`:''}
+        <div class="b">${esc(d.code).slice(0,4)}</div></div>` });
+  }
+  const sigOf = d => [d.mode,d.code,d.bearing==null?'':Math.round(d.bearing/10),colorMode,colorMode==='delay'?delayColor(d.delay):'',d.id===followId].join('|');
+
+  function upsert(d, now, dur){
+    let r = vehicles.get(d.id);
+    if (!r){
+      const marker = L.marker([d.lat,d.lon], {icon:iconFor(d)});
+      marker.on('click', () => openVehicle(d.id, true));
+      r = {data:d, marker, from:[d.lat,d.lon], to:[d.lat,d.lon], t0:now, dur, sig:sigOf(d)};
+      vehicles.set(d.id, r);
+    } else {
+      const cur = r.marker.getLatLng();
+      r.from=[cur.lat,cur.lng]; r.to=[d.lat,d.lon]; r.t0=now; r.dur=dur; r.data=d; r.done=false;
+      const s = sigOf(d); if (s!==r.sig){ r.marker.setIcon(iconFor(d)); r.sig=s; }
+    }
+    if (d.sj) bySJ.set(d.sj, d.id);
+  }
+  function prune(src, seen){
+    for (const [id,r] of vehicles) if (r.data.src===src && !seen.has(id)){
+      r.marker.remove(); vehicles.delete(id); if (r.data.sj && bySJ.get(r.data.sj)===id) bySJ.delete(r.data.sj);
+    }
+  }
+  function refreshIcons(){ for (const r of vehicles.values()){ r.sig=sigOf(r.data); r.marker.setIcon(iconFor(r.data)); } }
+
+  // --- Entur sanntidsposisjoner
+  const VF_FULL = `vehicleId mode lastUpdated bearing delay destinationName
+    line { lineRef publicCode lineName } location { latitude longitude } codespace { codespaceId } serviceJourney { id }`;
+  const VF_MID = `vehicleId mode lastUpdated bearing delay destinationName
+    line { lineRef publicCode lineName } location { latitude longitude } codespace { codespaceId }`;
+  const VF_MIN = `vehicleId mode lastUpdated bearing line { lineRef publicCode lineName } location { latitude longitude }`;
+  const vb = `boundingBox:{minLat:${BBOX.minLat},minLon:${BBOX.minLon},maxLat:${BBOX.maxLat},maxLon:${BBOX.maxLon}}`;
+  const VQ = [`{vehicles(${vb}){${VF_FULL}}}`, `{vehicles(${vb}){${VF_MID}}}`, `{vehicles(${vb}){${VF_MIN}}}`, `{vehicles(codespaceId:"SKY"){${VF_MIN}}}`];
+  let vqi = 0;
+
+  async function pollVehicles(){
+    try{
+      let data;
+      for (;;){ try{ data = await gql(URL_VEH, VQ[vqi]); break; } catch(e){ if (vqi < VQ.length-1 && !/HTTP|fetch/i.test(e.message)) vqi++; else throw e; } }
+      const now = Date.now(), seen = new Set();
+      for (const v of data.vehicles || []){
+        if (!v?.location) continue;
+        const ts = v.lastUpdated ? Date.parse(v.lastUpdated) : now;
+        if (now-ts > STALE_MS) continue;
+        const d = {
+          src:'rt', est:false, ts,
+          id: 'rt:'+(v.vehicleId || `${v.line?.lineRef}-${v.location.latitude}`),
+          mode: normMode(v.mode),
+          code: v.line?.publicCode || (v.line?.lineRef||'').split(':').pop() || '?',
+          name: v.line?.lineName || '', dest: v.destinationName || '',
+          delay: typeof v.delay==='number' ? v.delay : null,
+          bearing: typeof v.bearing==='number' ? v.bearing : null,
+          op: v.codespace?.codespaceId && v.codespace.codespaceId!=='SKY' ? v.codespace.codespaceId : '',
+          sj: v.serviceJourney?.id || null,
+          lat: v.location.latitude, lon: v.location.longitude,
+        };
+        seen.add(d.id); upsert(d, now, POLL_MS*0.9);
+      }
+      prune('rt', seen);
+      lastOk = Date.now(); failCount = 0;
+      render();
+    }catch(e){ failCount++; setStatus('err', e.message); }
+    finally{ setTimeout(pollVehicles, failCount ? Math.min(30000, POLL_MS*2**failCount) : POLL_MS); }
+  }
+
+  // ================= Bybanen (anslått fra sanntidsavganger) =================
+  const BB = {lines:null, quays:new Map(), journeys:new Map(), status:'init', err:''};
+  async function bbInit(){
+    const F = `id publicCode transportMode quays { id name latitude longitude }`;
+    const data = await gqlTry(URL_JP, [
+      `{ lines(ids:["SKY:Line:1","SKY:Line:2"]) { ${F} } }`,
+      `{ lines(publicCodes:["1","2"], transportModes:[tram]) { ${F} } }`,
+    ]);
+    let lines = (data.lines||[]).filter(l => l && l.id.startsWith('SKY:') && (!l.transportMode || l.transportMode==='tram'));
+    if (!lines.length) throw new Error('fant ikke Bybane-linjene');
+    BB.lines = lines;
+    for (const l of lines) for (const q of l.quays||[]) if (q.latitude) BB.quays.set(q.id, q);
+  }
+  async function bbPoll(){
+    if (hiddenModes.has('tram') && !(followId||'').startsWith('bb:')) return;
+    // Hvis Entur selv har ekte trikkeposisjoner, bruk dem og dropp anslaget
+    if ([...vehicles.values()].some(r => r.data.src==='rt' && r.data.mode==='tram')){ BB.journeys.clear(); prune('bb', new Set()); BB.status='real'; return; }
+    try{
+      if (!BB.lines) await bbInit();
+      const ids = JSON.stringify([...BB.quays.keys()]);
+      const lineIds = BB.lines.map(l => l.id);
+      const start = new Date(Date.now()-12*60000).toISOString();
+      const C = `aimedArrivalTime expectedArrivalTime aimedDepartureTime expectedDepartureTime destinationDisplay{frontText} serviceJourney{id line{id publicCode}}`;
+      const data = await gqlTry(URL_JP, [
+        `{ quays(ids:${ids}) { id estimatedCalls(startTime:"${start}", timeRange:3000, numberOfDepartures:24, arrivalDeparture:both, whiteListed:{lines:${JSON.stringify(lineIds)}}) { ${C} } } }`,
+        `{ quays(ids:${ids}) { id estimatedCalls(startTime:"${start}", timeRange:3000, numberOfDepartures:24, whiteListed:{lines:${JSON.stringify(lineIds)}}) { ${C} } } }`,
+        `{ quays(ids:${ids}) { id estimatedCalls(startTime:"${start}", timeRange:3000, numberOfDepartures:40) { ${C} } } }`,
+      ]);
+      const J = new Map(), lset = new Set(lineIds);
+      for (const q of data.quays||[]){
+        const qi = BB.quays.get(q?.id); if (!qi) continue;
+        for (const c of q.estimatedCalls||[]){
+          if (!c.serviceJourney || !lset.has(c.serviceJourney.line?.id)) continue;
+          const arr = Date.parse(c.expectedArrivalTime || c.expectedDepartureTime);
+          const dep = Date.parse(c.expectedDepartureTime || c.expectedArrivalTime);
+          const aim = Date.parse(c.aimedDepartureTime || c.aimedArrivalTime);
+          const j = J.get(c.serviceJourney.id) || {id:c.serviceJourney.id, code:c.serviceJourney.line.publicCode, dest:'', pts:[]};
+          if (c.destinationDisplay?.frontText) j.dest = c.destinationDisplay.frontText;
+          if (!j.pts.some(p => p.q===q.id)) j.pts.push({q:q.id, lat:qi.latitude, lon:qi.longitude, arr, dep, delay:(dep-aim)/1000});
+          J.set(j.id, j);
+        }
+      }
+      for (const j of J.values()) j.pts.sort((a,b) => a.arr-b.arr);
+      BB.journeys = J; BB.status='ok'; BB.err='';
+      bbTick();
+    }catch(e){ BB.status='err'; BB.err=e.message; }
+  }
+  function bbPosition(j, now){
+    const p = j.pts; if (p.length < 2) return null;
+    if (now < p[0].arr - 20000 || now > p[p.length-1].dep + 20000) return null;
+    for (let i=0;i<p.length;i++){
+      if (now >= p[i].arr && now <= p[i].dep){
+        const nb = p[i+1] ? bearingOf([p[i].lat,p[i].lon],[p[i+1].lat,p[i+1].lon]) : null;
+        return {lat:p[i].lat, lon:p[i].lon, bearing:nb, delay:p[i].delay};
+      }
+      if (p[i+1] && now > p[i].dep && now < p[i+1].arr){
+        const gap = p[i+1].arr - p[i].dep; if (gap > 8*60000) return null; // hull i data
+        const f = (now - p[i].dep)/gap;
+        return {lat:p[i].lat+(p[i+1].lat-p[i].lat)*f, lon:p[i].lon+(p[i+1].lon-p[i].lon)*f,
+                bearing:bearingOf([p[i].lat,p[i].lon],[p[i+1].lat,p[i+1].lon]), delay:p[i+1].delay};
+      }
+    }
+    return null;
+  }
+  function bbTick(){
+    if (BB.status!=='ok') return;
+    const now = Date.now(), seen = new Set();
+    for (const j of BB.journeys.values()){
+      const pos = bbPosition(j, now); if (!pos) continue;
+      const d = {src:'bb', est:true, ts:now, id:'bb:'+j.id, mode:'tram', code:j.code, name:'Bybanen', dest:j.dest,
+                 delay:pos.delay, bearing:pos.bearing, op:'', sj:j.id, lat:pos.lat, lon:pos.lon};
+      seen.add(d.id); upsert(d, now, 2000);
+    }
+    prune('bb', seen);
+    render();
+  }
+
+  // ================= Animation + follow =================
+  let lastPan = 0;
+  function frame(){
+    const now = Date.now(), b = map.getBounds().pad(0.2);
+    for (const r of vehicles.values()){
+      if (!r.shown || r.done) continue;
+      const t = Math.min(1, (now-r.t0)/r.dur);
+      const lat = r.from[0]+(r.to[0]-r.from[0])*t, lon = r.from[1]+(r.to[1]-r.from[1])*t;
+      if (t>=1 || b.contains([lat,lon])) r.marker.setLatLng([lat,lon]);
+      r.done = t>=1;
+    }
+    if (following && followId && now-lastPan > 400){
+      const r = vehicles.get(followId);
+      if (r){ map.panTo(r.marker.getLatLng(), {animate:true, duration:.4, noMoveStart:true}); lastPan = now; }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  map.on('dragstart', () => { if (following){ following=false; if (view==='veh') renderVehicle(); } });
+
+  // ================= Stops on map =================
+  const loadStops = debounce(async () => {
+    if (map.getZoom() < STOP_ZOOM){ stopsLayer.clearLayers(); return; }
+    const b = map.getBounds();
+    try{
+      const data = await gql(URL_JP, `{ stopPlacesByBbox(minimumLatitude:${b.getSouth()}, minimumLongitude:${b.getWest()}, maximumLatitude:${b.getNorth()}, maximumLongitude:${b.getEast()}) { id name latitude longitude } }`);
+      stopsLayer.clearLayers();
+      for (const s of data.stopPlacesByBbox||[]){
+        if (!s?.latitude) continue;
+        L.circleMarker([s.latitude,s.longitude], {renderer:stopRenderer, pane:'stops', radius:5, color:'#0b0f12', weight:2, fillColor:'#e2e8f0', fillOpacity:1})
+          .bindTooltip(esc(s.name), {className:'stoptip', direction:'top', offset:[0,-6]})
+          .on('click', () => openStop({id:s.id, name:s.name, lat:s.latitude, lon:s.longitude}, true))
+          .addTo(stopsLayer);
+      }
+    }catch(e){ /* stille – holdeplasser er bonus */ }
+  }, 350);
+  map.on('moveend zoomend', loadStops);
+
+  // ================= Views =================
+  function setView(v){
+    if (v!==view && view!=='veh') prevView = view;
+    view = v;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view===v || (v==='veh' && false)));
+    document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id==='v-'+v));
+    if (v==='now') renderNow();
+    if (v==='stop' && !curStop){ const f = load('blk.favs', []); if (f.length) openStop(f[0], false); else renderStopSearch(); }
+  }
+  document.querySelector('.tabs').addEventListener('click', e => {
+    const t = e.target.closest('.tab'); if (!t) return;
+    if (view==='veh') closeVehicle(false);
+    setView(t.dataset.view); $('side').classList.add('open');
+  });
+
+  // ================= Render: kjøretøy-liste =================
+  function setStatus(kind, msg){
+    $('dot').className = 'dot'+(kind==='err'?' err':'');
+    if (kind==='ok'){
+      const shown = [...vehicles.values()].filter(r => r.shown).length;
+      const bb = BB.status==='ok' ? '' : BB.status==='err' ? ' · Bybanen utilgjengelig' : '';
+      $('statusText').textContent = `${shown} av ${vehicles.size} kjøretøy · ${new Date(lastOk).toLocaleTimeString('no-NO')}${bb}`;
+    } else $('statusText').textContent = `Får ikke kontakt med Entur (${msg}). Prøver igjen …`;
+  }
+
+  function render(){
+    for (const r of vehicles.values()){
+      const show = visible(r.data);
+      if (show && !r.shown){ r.marker.addTo(map); r.marker.setLatLng(r.to); r.done=true; }
+      if (!show && r.shown) r.marker.remove();
+      r.shown = show;
+    }
+    if (lastOk) setStatus('ok');
+    if (view==='lines') renderLines();
+    if (view==='now') renderNowStats();
+    if (view==='stop' && curStop) renderStopLive();
+    if (view==='veh') renderVehicleHead();
+  }
+
+  function renderLines(){
+    const counts = {};
+    for (const r of vehicles.values()) counts[r.data.mode] = (counts[r.data.mode]||0)+1;
+    $('modes').innerHTML = Object.entries(MODES).filter(([k]) => counts[k] || ['bus','tram','boat'].includes(k))
+      .map(([k,m]) => `<button class="mode${hiddenModes.has(k)?' off':''}" data-mode="${k}" style="--c:${m.color}"><span class="sw"></span>${m.label}<span class="n">${counts[k]||0}</span></button>`).join('');
+    const lines = new Map();
+    for (const r of vehicles.values()){
+      const d=r.data; if (hiddenModes.has(d.mode)) continue;
+      const k=lineKey(d); const e=lines.get(k)||{k,mode:d.mode,code:d.code,name:d.name,n:0,dests:new Set()};
+      e.n++; if (d.dest) e.dests.add(d.dest); lines.set(k,e);
+    }
+    for (const k of selected) if (!lines.has(k)){ const [mode,code]=k.split('|'); if (MODES[mode]) lines.set(k,{k,mode,code,name:'',n:0,dests:new Set()}); }
+    const order = {tram:0,bus:1,boat:2,train:3,other:4};
+    const arr = [...lines.values()].filter(e => !query || e.code.toLowerCase().includes(query) || e.name.toLowerCase().includes(query) || [...e.dests].some(x => x.toLowerCase().includes(query)))
+      .sort((a,b) => order[a.mode]-order[b.mode] || a.code.localeCompare(b.code,'no',{numeric:true}));
+    $('lines').innerHTML = arr.map(e => `<button class="chip${selected.has(e.k)?' sel':''}" data-k="${esc(e.k)}" style="--c:${MODES[e.mode].color}" title="${esc(e.name||[...e.dests].join(' / '))}">${esc(e.code)}<small>${e.n}</small></button>`).join('') || `<p class="hint">Ingen linjer å vise ennå.</p>`;
+    $('clearSel').hidden = selected.size===0;
+    $('selHint').textContent = selected.size ? `Viser ${selected.size} valgt${selected.size>1?'e':''} linje${selected.size>1?'r':''}.` : 'Trykk på linjer for å vise bare dem. Trykk på et kjøretøy i kartet for å følge det.';
+    $('colorSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c===colorMode));
+    $('delayLegend').hidden = colorMode!=='delay';
+  }
+
+  $('modes').addEventListener('click', e => { const b=e.target.closest('[data-mode]'); if (!b) return; const m=b.dataset.mode;
+    hiddenModes.has(m)?hiddenModes.delete(m):hiddenModes.add(m); store('blk.hiddenModes',[...hiddenModes]); render(); if (m==='tram' && !hiddenModes.has('tram')) bbPoll(); });
+  $('lines').addEventListener('click', e => { const b=e.target.closest('[data-k]'); if (!b) return; const k=b.dataset.k;
+    selected.has(k)?selected.delete(k):selected.add(k); store('blk.selected',[...selected]); render();
+    if (selected.has(k)){ const pts=[...vehicles.values()].filter(r => lineKey(r.data)===k).map(r => r.to); if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(.3), {maxZoom:14}); } });
+  $('clearSel').addEventListener('click', () => { selected.clear(); store('blk.selected',[]); render(); });
+  $('q').addEventListener('input', e => { query=e.target.value.trim().toLowerCase(); render(); });
+  $('colorSeg').addEventListener('click', e => { const b=e.target.closest('[data-c]'); if (!b) return; colorMode=b.dataset.c; store('blk.color',colorMode); refreshIcons(); render(); });
+  $('toggle').addEventListener('click', () => $('side').classList.toggle('open'));
+
+  // ================= Følg kjøretøy =================
+  let vehCalls = null, vehCallsFor = null, vehTimer = null;
+  function openVehicle(id, follow){
+    const old = followId; followId = id; following = !!follow;
+    if (old && vehicles.get(old)){ const r=vehicles.get(old); r.sig=sigOf(r.data); r.marker.setIcon(iconFor(r.data)); }
+    const r = vehicles.get(id); if (!r) return;
+    r.sig=sigOf(r.data); r.marker.setIcon(iconFor(r.data)); r.marker.setZIndexOffset(1000);
+    if (follow) map.setView(r.marker.getLatLng(), Math.max(map.getZoom(), 15));
+    setView('veh'); $('side').classList.add('open');
+    vehCalls = null; vehCallsFor = r.data.sj;
+    renderVehicle(); loadVehicleCalls();
+    clearInterval(vehTimer); vehTimer = setInterval(loadVehicleCalls, 20000);
+    render();
+  }
+  function closeVehicle(goBack=true){
+    const r = vehicles.get(followId);
+    followId = null; following = false; clearInterval(vehTimer);
+    if (r){ r.sig=sigOf(r.data); r.marker.setIcon(iconFor(r.data)); r.marker.setZIndexOffset(0); }
+    if (vehRoute){ vehRoute.remove(); vehRoute=null; }
+    if (goBack) setView(prevView || 'lines');
+    render();
+  }
+  async function loadVehicleCalls(){
+    const r = vehicles.get(followId); if (!r || !r.data.sj) { renderVehicle(); return; }
+    const sj = r.data.sj, date = todayOslo();
+    const C = `quay{id name latitude longitude} aimedArrivalTime expectedArrivalTime aimedDepartureTime expectedDepartureTime realtime cancellation`;
+    try{
+      const data = await gqlTry(URL_JP, [
+        `{ serviceJourney(id:${JSON.stringify(sj)}) { id estimatedCalls(date:"${date}") { ${C} } } }`,
+        `{ serviceJourney(id:${JSON.stringify(sj)}) { id estimatedCalls { ${C} } } }`,
+      ]);
+      if (vehCallsFor !== sj) return;
+      vehCalls = data.serviceJourney?.estimatedCalls || [];
+    }catch(e){ vehCalls = {error:e.message}; }
+    renderVehicle();
+  }
+  function renderVehicleHead(){
+    const r = vehicles.get(followId);
+    const head = $('vehHead'); if (!head) return;
+    if (!r){ head.innerHTML = `<p class="hint">Kjøretøyet har sluttet å rapportere posisjon.</p>`; return; }
+    const d = r.data;
+    head.innerHTML = `
+      <div class="ttl"><span class="badge" style="--c:${MODES[d.mode].color}">${esc(d.code)}</span>${esc(d.dest || d.name || MODES[d.mode].label)}</div>
+      <div class="kv"><span>${delayHtml(d.delay) || 'Forsinkelse ukjent'}</span><span>${MODES[d.mode].label}${d.est?' (anslått posisjon)':''}</span>${d.op?`<span>${esc(d.op)}</span>`:''}<span>Oppdatert ${Math.max(0,Math.round((Date.now()-d.ts)/1000))} s siden</span></div>`;
+  }
+  function renderVehicle(){
+    if (vehRoute){ vehRoute.remove(); vehRoute=null; }
+    const r = vehicles.get(followId);
+    const box = $('vehBox');
+    box.innerHTML = `
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <button class="link" id="vehBack" style="font-size:13px">← Tilbake</button>
+          <button class="iconbtn${following?' on':''}" id="vehFollow">${following?'Følger':'Følg'}</button>
+        </div>
+        <div id="vehHead"></div>
+      </div>
+      <div id="vehCalls"></div>`;
+    renderVehicleHead();
+    $('vehBack').onclick = () => closeVehicle(true);
+    $('vehFollow').onclick = () => { following = !following; if (following && r) map.panTo(r.marker.getLatLng()); renderVehicle(); };
+    const el = $('vehCalls');
+    if (!r) return;
+    if (!r.data.sj){ el.innerHTML = `<p class="hint" style="padding:0 16px">Dette kjøretøyet sender ikke turinformasjon, så neste stopp er ukjent.</p>`; return; }
+    if (!vehCalls){ el.innerHTML = `<p class="hint" style="padding:0 16px">Henter neste stopp …</p>`; return; }
+    if (vehCalls.error || !vehCalls.length){ el.innerHTML = `<p class="hint" style="padding:0 16px">Fant ikke stoppinformasjon for denne turen.</p>`; return; }
+    const now = Date.now();
+    const T = c => Date.parse(c.expectedDepartureTime || c.expectedArrivalTime);
+    let ni = vehCalls.findIndex(c => T(c) >= now-30000); if (ni<0) ni = vehCalls.length-1;
+    const from = Math.max(0, ni-1), list = vehCalls.slice(from, ni+14);
+    el.innerHTML = `<div class="section" style="padding-bottom:0;border-bottom:none"><h2>Neste stopp</h2></div><ul class="calls" style="--c:${MODES[r.data.mode].color}">` +
+      list.map((c,i) => { const idx=from+i, past=idx<ni, t=T(c), aimed=Date.parse(c.aimedDepartureTime||c.aimedArrivalTime), dl=Math.round((t-aimed)/60000);
+        return `<li class="${past?'past':''}${idx===ni?' next':''}"><span class="pt"></span><span class="${c.cancellation?'cx':''}">${esc(c.quay?.name)}</span>
+          <span class="tm">${past?clock(t):relTime(t)}${!past&&dl>=2?` <span class="late-t">+${dl}</span>`:''}</span></li>`; }).join('') + `</ul>`;
+    // rute på kartet
+    if (vehRoute) vehRoute.remove();
+    const pts = vehCalls.slice(ni).filter(c => c.quay?.latitude).map(c => [c.quay.latitude, c.quay.longitude]);
+    pts.unshift([r.marker.getLatLng().lat, r.marker.getLatLng().lng]);
+    vehRoute = L.layerGroup([
+      L.polyline(pts, {pane:'route', color:'#60a5fa', weight:4, opacity:.8, dashArray:'2 8', lineCap:'round'}),
+      ...pts.slice(1).map(p => L.circleMarker(p, {pane:'route', radius:3, color:'#60a5fa', weight:2, fillColor:'#0b0f12', fillOpacity:1}))
+    ]).addTo(map);
+  }
+
+  // ================= Holdeplass / avgangstavle =================
+  let stopDeps = null, stopTimer = null, stopFilter = new Set(), stopLoading = false;
+  function renderStopSearch(){ $('stopBox').innerHTML = ''; $('stopSearchBox').hidden = false; renderFavs(); }
+  function renderFavs(){
+    const f = load('blk.favs', []);
+    if ($('stopQ').value.trim()) return;
+    $('stopResults').innerHTML = f.length ? `<p class="hint" style="margin:4px 0">Favoritter</p>` + f.map((s,i) =>
+      `<button class="res" data-fav="${i}"><span class="fav">★</span>${esc(s.name)}</button>`).join('') : '';
+  }
+  $('stopResults').addEventListener('click', e => {
+    const b = e.target.closest('.res'); if (!b) return;
+    if (b.dataset.fav != null) openStop(load('blk.favs', [])[+b.dataset.fav], true);
+    else openStop(JSON.parse(b.dataset.s), true);
+  });
+  $('stopQ').addEventListener('input', debounce(async () => {
+    const q = $('stopQ').value.trim();
+    if (q.length < 2){ renderFavs(); return; }
+    try{
+      const u = `${URL_GEO}?text=${encodeURIComponent(q)}&size=8&layers=venue&lang=no&focus.point.lat=${CENTER[0]}&focus.point.lon=${CENTER[1]}`;
+      const j = await (await fetch(u, {headers:{'ET-Client-Name':CLIENT}})).json();
+      const res = (j.features||[]).filter(f => (f.properties?.id||'').startsWith('NSR:StopPlace'));
+      $('stopResults').innerHTML = res.map(f => { const s = {id:f.properties.id, name:f.properties.name, lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0]};
+        return `<button class="res" data-s='${esc(JSON.stringify(s))}'>${esc(s.name)}<small>${esc(f.properties.locality || f.properties.county || '')}</small></button>`; }).join('') || `<p class="hint">Ingen treff.</p>`;
+    }catch(e){ $('stopResults').innerHTML = `<p class="hint err-t">Søket feilet (${esc(e.message)}).</p>`; }
+  }, 250));
+
+  function openStop(s, pan){
+    if (view==='veh') closeVehicle(false);
+    curStop = s; stopDeps = null; stopFilter = new Set(load('blk.stopFilter:'+s.id, []));
+    setView('stop'); $('side').classList.add('open');
+    $('stopSearchBox').hidden = true;
+    if (stopMarker) stopMarker.remove();
+    if (s.lat){
+      stopMarker = L.circleMarker([s.lat,s.lon], {pane:'stops', radius:9, color:'#60a5fa', weight:3, fillColor:'#0b0f12', fillOpacity:1}).addTo(map);
+      if (pan) map.setView([s.lat,s.lon], Math.max(map.getZoom(), 15));
+    }
+    renderStop(); loadStopDeps();
+    clearInterval(stopTimer); stopTimer = setInterval(loadStopDeps, 20000);
+  }
+  function closeStop(){
+    curStop = null; clearInterval(stopTimer); if (stopMarker){ stopMarker.remove(); stopMarker=null; }
+    $('stopQ').value = ''; renderStopSearch();
+  }
+  async function loadStopDeps(){
+    if (!curStop || stopLoading) return; stopLoading = true;
+    const id = curStop.id;
+    try{
+      const data = await gql(URL_JP, `{ stopPlace(id:${JSON.stringify(id)}) { id name latitude longitude
+        estimatedCalls(numberOfDepartures:40, timeRange:10800) { realtime cancellation aimedDepartureTime expectedDepartureTime
+          destinationDisplay{frontText} quay{publicCode} serviceJourney{id line{publicCode transportMode}} } } }`);
+      if (curStop?.id !== id) return;
+      const sp = data.stopPlace;
+      if (sp){ curStop.name = sp.name; if (!curStop.lat && sp.latitude){ curStop.lat=sp.latitude; curStop.lon=sp.longitude; openStop(curStop, true); return; } }
+      stopDeps = sp?.estimatedCalls || [];
+    }catch(e){ stopDeps = {error:e.message}; }
+    finally{ stopLoading = false; }
+    renderStop();
+  }
+  function renderStop(){
+    if (!curStop) return;
+    const favs = load('blk.favs', []), isFav = favs.some(f => f.id===curStop.id);
+    let lineChips = '';
+    if (Array.isArray(stopDeps)){
+      const ls = new Map();
+      for (const c of stopDeps){ const l=c.serviceJourney?.line; if (l) ls.set(l.publicCode, normMode(l.transportMode)); }
+      const arr = [...ls].sort((a,b) => a[0].localeCompare(b[0],'no',{numeric:true}));
+      if (arr.length > 1) lineChips = `<div class="lines" id="stopLines" style="margin-top:12px">${arr.map(([code,m]) => `<button class="chip${stopFilter.has(code)?' sel':''}" data-code="${esc(code)}" style="--c:${MODES[m].color}">${esc(code)}</button>`).join('')}</div>
+        <p class="hint">${stopFilter.size ? 'Viser bare valgte linjer – «hvor er bussen min?»' : 'Velg linjen din for å se hvor bussen er nå.'}</p>`;
+    }
+    $('stopBox').innerHTML = `
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <button class="link" id="stopBack" style="font-size:13px">← Søk</button>
+          <button class="iconbtn${isFav?' on':''}" id="stopFav">${isFav?'★ Favoritt':'☆ Lagre'}</button>
+        </div>
+        <div class="ttl">${esc(curStop.name)}</div>
+        ${lineChips}
+      </div>
+      <div class="deps" id="stopDeps"></div>`;
+    $('stopBack').onclick = closeStop;
+    $('stopFav').onclick = () => { let f = load('blk.favs', []);
+      f = isFav ? f.filter(x => x.id!==curStop.id) : [{id:curStop.id, name:curStop.name, lat:curStop.lat, lon:curStop.lon}, ...f].slice(0,8);
+      store('blk.favs', f); renderStop(); };
+    const sl = $('stopLines'); if (sl) sl.onclick = e => { const b=e.target.closest('[data-code]'); if (!b) return; const c=b.dataset.code;
+      stopFilter.has(c)?stopFilter.delete(c):stopFilter.add(c); store('blk.stopFilter:'+curStop.id,[...stopFilter]); renderStop(); };
+    renderStopLive();
+  }
+  function renderStopLive(){
+    const el = $('stopDeps'); if (!el || !curStop) return;
+    if (!stopDeps){ el.innerHTML = `<p class="hint" style="padding:0 16px">Henter avganger …</p>`; return; }
+    if (stopDeps.error){ el.innerHTML = `<p class="hint err-t" style="padding:0 16px">Kunne ikke hente avganger (${esc(stopDeps.error)}).</p>`; return; }
+    const now = Date.now();
+    const list = stopDeps.filter(c => Date.parse(c.expectedDepartureTime) >= now-30000)
+      .filter(c => !stopFilter.size || stopFilter.has(c.serviceJourney?.line?.publicCode)).slice(0, 25);
+    if (!list.length){ el.innerHTML = `<p class="hint" style="padding:0 16px">Ingen avganger de neste timene.</p>`; return; }
+    el.innerHTML = list.map(c => {
+      const l = c.serviceJourney?.line || {}, m = normMode(l.transportMode);
+      const t = Date.parse(c.expectedDepartureTime), aimed = Date.parse(c.aimedDepartureTime), dl = Math.round((t-aimed)/60000);
+      const vid = c.serviceJourney && bySJ.get(c.serviceJourney.id), v = vid && vehicles.get(vid);
+      let loc = '';
+      if (v){ const p = v.marker.getLatLng(); loc = `<span class="loc">● ${v.data.est?'ca. ':''}${fmtDist(dist([p.lat,p.lng],[curStop.lat,curStop.lon]))} unna</span> · `; }
+      const meta = loc + (c.cancellation ? '<span class="cx">Innstilt</span>' : dl>=2 ? `<span class="late-t">${dl} min forsinket</span>` : c.realtime ? '<span class="rt">Sanntid</span>' : 'Rutetid')
+        + (c.quay?.publicCode ? ` · Plf. ${esc(c.quay.publicCode)}` : '');
+      return `<button class="dep${v?' live':''}" ${v?`data-v="${esc(vid)}"`:''}>
+        <span class="badge" style="--c:${MODES[m].color}">${esc(l.publicCode||'?')}</span>
+        <span><div class="d">${esc(c.destinationDisplay?.frontText||'')}</div><div class="m">${meta}</div></span>
+        <span class="t ${c.cancellation?'cx':''}">${relTime(t)}${dl>=2?`<small>${clock(aimed)}</small>`:''}</span></button>`;
+    }).join('');
+    el.onclick = e => { const b = e.target.closest('[data-v]'); if (b) openVehicle(b.dataset.v, true); };
+  }
+
+  // ================= Bergen nå =================
+  const W = {data:null, err:'', t:0}, P = {data:null, err:'', t:0};
+  const SYM = {clearsky:'Klarvær',fair:'Lettskyet',partlycloudy:'Delvis skyet',cloudy:'Skyet',fog:'Tåke',
+    lightrain:'Lett regn',rain:'Regn',heavyrain:'Kraftig regn',lightrainshowers:'Lette regnbyger',rainshowers:'Regnbyger',heavyrainshowers:'Kraftige regnbyger',
+    lightsleet:'Lett sludd',sleet:'Sludd',heavysleet:'Kraftig sludd',sleetshowers:'Sluddbyger',lightsnow:'Lett snø',snow:'Snø',heavysnow:'Kraftig snø',snowshowers:'Snøbyger'};
+  const symText = s => { if (!s) return ''; const k = s.replace(/_(day|night|polartwilight)$/,'').replace(/andthunder$/,''); return (SYM[k]||k) + (/andthunder/.test(s)?' og torden':''); };
+
+  async function loadWeather(){
+    try{
+      let j, kind = 'nowcast';
+      try{ const r = await fetch(`https://api.met.no/weatherapi/nowcast/2.0/complete?lat=${CENTER[0]}&lon=${CENTER[1]}`); if (!r.ok) throw 0; j = await r.json(); }
+      catch(e){ kind='forecast'; const r = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${CENTER[0]}&lon=${CENTER[1]}`); if (!r.ok) throw new Error('HTTP '+r.status); j = await r.json(); }
+      const ts = j.properties.timeseries, d0 = ts[0].data;
+      W.data = { kind, temp:d0.instant.details.air_temperature, wind:d0.instant.details.wind_speed,
+        sym: d0.next_1_hours?.summary?.symbol_code,
+        series: kind==='nowcast' ? ts.slice(0,19).map(t => ({t:Date.parse(t.time), v:t.data.instant.details.precipitation_rate ?? 0}))
+                                 : ts.slice(0,12).map(t => ({t:Date.parse(t.time), v:t.data.next_1_hours?.details?.precipitation_amount ?? 0})) };
+      W.err=''; W.t=Date.now();
+    }catch(e){ W.err = e.message || 'feil'; }
+    if (view==='now') renderNow();
+  }
+  async function loadPrice(){
+    try{
+      const [y,m,d] = todayOslo().split('-');
+      const r = await fetch(`https://www.hvakosterstrommen.no/api/v1/prices/${y}/${m}-${d}_NO5.json`);
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      P.data = await r.json(); P.err=''; P.t=Date.now();
+    }catch(e){ P.err = e.message || 'feil'; }
+    if (view==='now') renderNow();
+  }
+
+  function renderNow(){
+    const now = Date.now();
+    if (now - W.t > 5*60000) { W.t = now; loadWeather(); }
+    if (now - P.t > 30*60000){ P.t = now; loadPrice(); }
+    let wHtml = `<p>Henter vær …</p>`;
+    if (W.err && !W.data) wHtml = `<p class="err-t">Kunne ikke hente vær (${esc(W.err)}).</p>`;
+    else if (W.data){
+      const w = W.data, s = w.series, wet = x => x.v > (w.kind==='nowcast' ? 0.1 : 0.2);
+      let rain;
+      if (wet(s[0])) rain = '<b>Ja, det regner nå.</b>';
+      else { const n = s.find(wet); rain = n ? `<b>Regn om ca. ${Math.max(5,Math.round((n.t-now)/60000))} min.</b>` : `<b>Opphold</b> de neste ${w.kind==='nowcast'?'90 minuttene':'timene'}.`; }
+      const mx = Math.max(1, ...s.map(x => x.v));
+      wHtml = `<div class="big">${fmtNum(w.temp)}°<small> ${esc(symText(w.sym))}</small></div>
+        <p>Regner det? ${rain} Vind ${fmtNum(w.wind)} m/s.</p>
+        <div class="bars">${s.map(x => `<span style="height:${Math.max(4, x.v/mx*100)}%;${x.v<=0?'opacity:.15':''}" title="${clock(x.t)}: ${fmtNum(x.v)} mm${w.kind==='nowcast'?'/t':''}"></span>`).join('')}</div>
+        <div class="axis"><span>Nå</span><span>${w.kind==='nowcast'?'+45 min':'+6 t'}</span><span>${w.kind==='nowcast'?'+90 min':'+12 t'}</span></div>`;
+    }
+    let pHtml = `<p>Henter strømpris …</p>`;
+    if (P.err && !P.data) pHtml = `<p class="err-t">Kunne ikke hente strømpris (${esc(P.err)}).</p>`;
+    else if (P.data){
+      const hours = new Map();
+      for (const e of P.data){ const h = new Date(e.time_start).toLocaleTimeString('no-NO',{hour:'2-digit',timeZone:'Europe/Oslo'}); const a = hours.get(h)||[]; a.push(e.NOK_per_kWh); hours.set(h,a); }
+      const hv = [...hours].map(([h,a]) => ({h:+h, v:a.reduce((s,x)=>s+x,0)/a.length}));
+      const cur = P.data.find(e => Date.parse(e.time_start) <= now && now < Date.parse(e.time_end));
+      const curH = +new Date().toLocaleTimeString('no-NO',{hour:'2-digit',timeZone:'Europe/Oslo'});
+      const rest = hv.filter(x => x.h >= curH), cheap = rest.reduce((a,b) => b.v<a.v?b:a, rest[0]||hv[0]);
+      const mx = Math.max(...hv.map(x => x.v)), mn = Math.min(0, ...hv.map(x => x.v));
+      pHtml = `<div class="big">${cur ? Math.round(cur.NOK_per_kWh*100) : '–'}<small> øre/kWh</small></div>
+        <p>Billigst resten av dagen: <b>kl. ${String(cheap.h).padStart(2,'0')}</b> (${Math.round(cheap.v*100)} øre). Eks. mva og nettleie.</p>
+        <div class="bars">${hv.map(x => `<span class="${x.h===curH?'cur':x.h<curH?'past':''}" style="height:${Math.max(4,(x.v-mn)/(mx-mn||1)*100)}%" title="kl. ${x.h}: ${Math.round(x.v*100)} øre"></span>`).join('')}</div>
+        <div class="axis"><span>00</span><span>12</span><span>23</span></div>`;
+    }
+    $('tiles').innerHTML = `
+      <div class="tile w" id="nowStats"></div>
+      <div class="tile" id="nowPunct"></div>
+      <div class="tile clickable" id="nowWorst"></div>
+      <div class="tile w"><h3>Været i sentrum</h3>${wHtml}</div>
+      <div class="tile w"><h3>Strøm · Vest-Norge (NO5)</h3>${pHtml}</div>
+      <div class="tile w" id="nowBoats"></div>`;
+    renderNowStats();
+  }
+  function renderNowStats(){
+    if (!$('nowStats')) return;
+    const all = [...vehicles.values()].map(r => r.data);
+    const c = m => all.filter(d => d.mode===m).length;
+    $('nowStats').innerHTML = `<h3>I trafikk akkurat nå</h3><div class="big">${all.length}<small> kjøretøy</small></div>
+      <p><b>${c('bus')}</b> busser · <b>${c('tram')}</b> bybaner${BB.status==='ok'?' (anslått)':''} · <b>${c('boat')}</b> båter${c('train')?` · <b>${c('train')}</b> tog`:''}</p>`;
+    const withD = all.filter(d => d.delay!=null && !d.est && d.mode==='bus');
+    const late = withD.filter(d => d.delay>=180).length;
+    const avg = withD.length ? withD.reduce((s,d)=>s+Math.max(0,d.delay),0)/withD.length/60 : null;
+    $('nowPunct').innerHTML = `<h3>Punktlighet</h3>${withD.length ? `<div class="big">${Math.round((1-late/withD.length)*100)}<small> %</small></div>
+      <p>busser innenfor 3 min. Snitt <b>${fmtNum(avg)} min</b> forsinket.</p>` : '<p>Ingen forsinkelsesdata ennå.</p>'}`;
+    const byLine = new Map();
+    for (const d of withD){ const a = byLine.get(d.code)||[]; a.push(d.delay); byLine.set(d.code,a); }
+    let worst = null;
+    for (const [code,a] of byLine) if (a.length>=2){ const v = a.reduce((s,x)=>s+x,0)/a.length; if (!worst || v>worst.v) worst = {code, v, n:a.length}; }
+    const wEl = $('nowWorst');
+    wEl.innerHTML = `<h3>Mest forsinket</h3>${worst ? `<div class="big">${esc(worst.code)}</div><p>Linje ${esc(worst.code)}: snitt <b>${fmtNum(worst.v/60)} min</b> (${worst.n} busser). Trykk for å se.</p>` : '<p>Ingen linje skiller seg ut.</p>'}`;
+    wEl.onclick = worst ? () => { selected.clear(); selected.add('bus|'+worst.code); store('blk.selected',[...selected]); setView('lines'); render();
+      const pts=[...vehicles.values()].filter(r => r.data.mode==='bus' && r.data.code===worst.code).map(r => r.to); if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(.3), {maxZoom:14}); } : null;
+    const boats = all.filter(d => d.mode==='boat');
+    $('nowBoats').innerHTML = `<h3>På sjøen</h3><div class="big">${boats.length}<small> båter i rute</small></div>
+      <p>${boats.length ? [...new Set(boats.map(b => b.dest).filter(Boolean))].slice(0,5).map(esc).join(' · ') : 'Ingen båtruter rapporterer posisjon akkurat nå.'}</p>
+      <p style="margin-top:6px">Cruiseskip og Hurtigruten krever AIS-data, som ikke er med ennå.</p>`;
+  }
+
+  // ================= Start =================
+  render();
+  pollVehicles();
+  bbPoll(); setInterval(bbPoll, 20000); setInterval(bbTick, 2000);
+  loadStops();
+  setInterval(() => { if (view==='stop' && curStop) renderStopLive(); if (view==='veh') renderVehicleHead(); }, 10000);
+})();
+</script>
+</body>
+</html>

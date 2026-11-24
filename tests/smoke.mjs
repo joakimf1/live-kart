@@ -167,13 +167,32 @@ await step('Nedbørkart', async () => {
   await page.goto(BASE + '#regn');
   await page.waitForFunction(() => !document.getElementById('rainBar')?.hidden && /kl\./.test(document.getElementById('rainTime')?.textContent || ''), null, { timeout: 20000 });
   await page.evaluate(() => { const s = document.getElementById('rainSlider'); s.value = String(+s.max - 10); s.dispatchEvent(new Event('input')); });
-  await wait(8000);
-  const r = await page.evaluate(() => {
-    const imgs = [...document.querySelectorAll('.leaflet-rain-pane img')];
-    const ok = src => imgs.filter(i => i.src.includes(src) && i.complete && i.naturalWidth > 0).length;
-    return { yr: ok('victoria.met.no'), radar: ok('rainviewer'), note: document.getElementById('rainNote').textContent };
-  });
-  check('Nedbørvarsel (MET Victoria WMS)', r.yr > 0, `${r.yr} kartfliser · ${r.note}`);
+  // Vent opptil 25 s på at kartflisene lastes (MET kan være treg)
+  let r;
+  for (let i = 0; i < 25; i++) {
+    await wait(1000);
+    r = await page.evaluate(() => {
+      const imgs = [...document.querySelectorAll('.leaflet-rain-pane img')];
+      const ok = src => imgs.filter(i => i.src.includes(src) && i.complete && i.naturalWidth > 0).length;
+      const any = imgs.find(i => i.src.includes('victoria.met.no'));
+      return { yr: ok('victoria.met.no'), radar: ok('rainviewer'), note: document.getElementById('rainNote').textContent, sample: any?.src || '' };
+    });
+    if (r.yr > 0) break;
+  }
+  if (r.yr > 0) check('Nedbørvarsel (MET Victoria WMS)', true, `${r.yr} kartfliser · ${r.note}`);
+  else {
+    // Skill mellom feil hos MET (driftsproblem hos dem) og feil i appen
+    let info = 'ingen kartflis-adresse funnet';
+    let metDown = false;
+    if (r.sample) {
+      const res = await page.request.get(r.sample, { timeout: 20000 }).catch(e => ({ status: () => 0, headers: () => ({}), text: async () => String(e.message) }));
+      const st = res.status(), ct = (res.headers()['content-type'] || '');
+      metDown = st === 0 || st >= 500 || !ct.startsWith('image/');
+      info = `MET svarte HTTP ${st} (${ct || 'ukjent type'})` + (ct.startsWith('image/') ? '' : ': ' + (await res.text()).replace(/\s+/g, ' ').slice(0, 120));
+    }
+    if (metDown) warn('Nedbørvarsel (MET Victoria WMS)', false, 'driftsproblem hos MET – ' + info);
+    else check('Nedbørvarsel (MET Victoria WMS)', false, '0 kartfliser lastet · ' + info);
+  }
   warn('Radar (RainViewer)', r.radar > 0 || !/⚠/.test(r.note), r.radar ? `${r.radar} kartfliser` : r.note);
   await page.screenshot({ path: SHOTS + '5-nedbor.png' });
 });
